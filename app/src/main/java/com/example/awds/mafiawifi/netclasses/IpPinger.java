@@ -8,7 +8,7 @@ import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.BehaviorSubject;
 
 public class IpPinger {
-    public static BehaviorSubject startPing(Observable<Integer> wifiStateObservable) {
+    public static Observable startPing(Observable<Integer> wifiStateObservable) {
         Observable justIps = Observable.create(e -> {
             for (int i = 1; i < 256; i++) {
                 e.onNext(i);
@@ -20,6 +20,6 @@ public class IpPinger {
                     if ((int) ip == 0)
                         throw new IOException();
                 }).flatMap(ip -> Observable.just(ip))
-                .subscribeOn(Schedulers.io())
+                .subscribeOn(Schedulers.io());
     }
 }

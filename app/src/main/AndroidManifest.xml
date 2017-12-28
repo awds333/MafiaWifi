@@ -31,8 +31,16 @@
             android:enabled="true"
             android:exported="false" />
 
-        <activity android:name=".activitys.client.ServerSerchActivity" />
-        <activity android:name=".activitys.server.WaitingForPlayersActivity"></activity>
+        <activity android:name=".activitys.client.ServerSearchingActivity" />
+        <activity android:name=".activitys.server.WaitingForPlayersActivity" />
+
+        <receiver
+            android:name=".receivers.MyReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <activity android:name=".activitys.client.WaitingForGameStartActivity" />
+        <activity android:name=".activitys.client.ClientGameActivity"></activity>
     </application>
 
 </manifest>

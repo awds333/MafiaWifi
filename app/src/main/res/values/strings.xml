@@ -5,7 +5,7 @@
     <string name="yourn">your name</string>
     <string name="servn">server name</string>
     <string name="ok">Ok</string>
-    <string name="cansel">Cansel</string>
+    <string name="cancel">Cancel</string>
     <string name="name">name</string>
     <string name="join">join!</string>
     <string name="players">Players</string>
@@ -40,4 +40,6 @@
     <string name="create_a_photo">Create a photo</string>
     <string name="select_from_saved">Select from saved</string>
     <string name="remove_image">Remove image</string>
+    <string name="searching">Searching...</string>
+    <string name="soon_the_beginning">Soon the beginning</string>
 </resources>

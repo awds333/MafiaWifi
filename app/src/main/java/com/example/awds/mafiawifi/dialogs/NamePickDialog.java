@@ -14,7 +14,7 @@ import android.widget.Toast;
 
 import com.example.awds.mafiawifi.R;
 import com.example.awds.mafiawifi.activitys.MainActivity;
-import com.example.awds.mafiawifi.activitys.client.ServerSerchActivity;
+import com.example.awds.mafiawifi.activitys.client.ServerSearchingActivity;
 import com.example.awds.mafiawifi.servises.ClientService;
 
 
@@ -40,7 +40,7 @@ public class NamePickDialog extends DialogFragment implements View.OnClickListen
         if (view.getId() == R.id.yesbt) {
             String s = ((EditText) dialog.findViewById(R.id.text)).getText().toString();
             if (!s.replaceAll("\\s+", "").equals("")) {
-                Intent intent = new Intent(context, ServerSerchActivity.class);
+                Intent intent = new Intent(context, ServerSearchingActivity.class);
                 Intent serviceStart = new Intent(context, ClientService.class);
                 intent.putExtra("name", s);
                 serviceStart.putExtra("name", s);
