@@ -15,7 +15,7 @@ import io.reactivex.Observable;
 import io.reactivex.observables.ConnectableObservable;
 import io.reactivex.schedulers.Schedulers;
 
-public class WifiStateObservable {
+public class WifiStateListener {
 
     public static final int WIFI_STATE_DISCONNECTED = 0;
     public static final int WIFI_STATE_CONNECTED = 1;
@@ -26,7 +26,7 @@ public class WifiStateObservable {
     private ConnectableObservable connectableObservable;
     private WifiApManager wifiApManager;
 
-    public WifiStateObservable(Context context) {
+    public WifiStateListener(Context context) {
         this.context = context;
     }
 

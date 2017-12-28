@@ -8,5 +8,4 @@ public abstract class Engine {
 
     public abstract Observable<JSONObject> bind(Observable<JSONObject> observable);
 
-    public abstract void finish();
 }

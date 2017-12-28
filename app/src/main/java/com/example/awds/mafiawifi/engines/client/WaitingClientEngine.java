@@ -13,9 +13,4 @@ public class WaitingClientEngine extends Engine {
     public Observable<JSONObject> bind(Observable<JSONObject> observable) {
         return null;
     }
-
-    @Override
-    public void finish() {
-
-    }
 }

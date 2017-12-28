@@ -16,6 +16,7 @@ import com.example.awds.mafiawifi.activitys.client.WaitingForGameStartActivity;
 import com.example.awds.mafiawifi.engines.Engine;
 import com.example.awds.mafiawifi.engines.client.ServerSearchingEngine;
 import com.example.awds.mafiawifi.netclasses.ClientSocketManager;
+import com.example.awds.mafiawifi.netclasses.WifiStateListener;
 import com.example.awds.mafiawifi.receivers.MyReceiver;
 
 import org.json.JSONObject;
@@ -26,6 +27,10 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
 
+import static com.example.awds.mafiawifi.EventTypes.ADDRESS_ACTIVITY;
+import static com.example.awds.mafiawifi.EventTypes.ADDRESS_ENGINE;
+import static com.example.awds.mafiawifi.EventTypes.ADDRESS_SOCKET_MANAGER;
+import static com.example.awds.mafiawifi.EventTypes.TYPE_WIFI_CONNECTION;
 import static com.example.awds.mafiawifi.activitys.MainActivity.MY_TAG;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_PLAYING_AS_CLIENT;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_SEARCHING_FOR_SERVERS;
@@ -39,9 +44,10 @@ public class ClientService extends Service {
     private ClientSocketManager socketManager;
     private int state;
     private SharedPreferences preferences;
-    private Subject<JSONObject> serviceInput, socketManagerInput, engineInput, activityInput, activityOutput, engineOutput;
-    private Observable<JSONObject> serviceOutput, socketManagerOutput;
+    private Subject<JSONObject> socketManagerInput, engineInput, activityInput, activityOutput, engineOutput;
+    private Observable<JSONObject> serviceInput, socketManagerOutput, engineInputObservable, wifiStateObservable, activityInputObservable;
     private Disposable engineOutputDisposable;
+    private WifiStateListener wifiStateListener;
 
     @Override
     public void onCreate() {
@@ -54,12 +60,30 @@ public class ClientService extends Service {
         engineOutput = PublishSubject.create();
         activityInput = PublishSubject.create();
         activityOutput = PublishSubject.create();
-        activityOutput.subscribe()
-        engine = new ServerSearchingEngine();
-        socketManager = ClientSocketManager.getManager();Disposable
 
-        engineOutputDisposable = engine.bind(engineInput).subscribe((JSONObject j) -> engineOutput.onNext(j),e -> engineOutput.onError(e));
+        engine = new ServerSearchingEngine();
+        socketManager = ClientSocketManager.getManager();
+        wifiStateListener = new WifiStateListener(this);
+
+        engineOutputDisposable = engine.bind(engineInput).subscribe((JSONObject j) -> engineOutput.onNext(j), e -> engineOutput.onError(e));
         socketManagerOutput = socketManager.bind(socketManagerInput);
+        wifiStateObservable = wifiStateListener.getObservable()
+                .map(i -> {
+                    JSONObject object = new JSONObject();
+                    object.put("type", TYPE_WIFI_CONNECTION);
+                    object.put("state", i);
+                    return object;
+                });
+
+        Observable.merge(wifiStateObservable, engineOutput.filter(j -> j.getInt("address") % ADDRESS_SOCKET_MANAGER == 0))
+                .subscribe(socketManagerInput);
+        engineInputObservable = Observable.merge(wifiStateObservable, socketManagerOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0)
+                ,activityOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0));
+        engineInputObservable.subscribe(engineInput);
+        activityInputObservable = Observable.merge(wifiStateObservable, engineOutput.filter(j -> j.getInt("address") % ADDRESS_ACTIVITY == 0));
+        activityInputObservable.subscribe(activityInput);
+
+        wifiStateListener.startListen();
     }
 
     @Override

@@ -10,6 +10,8 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 
+import static com.example.awds.mafiawifi.netclasses.WifiStateListener.WIFI_STATE_DISCONNECTED;
+
 public class ClientSocketManager {
     private static ClientSocketManager ourInstance;
 
@@ -35,9 +37,9 @@ public class ClientSocketManager {
                 .observeOn(Schedulers.io())
                 .subscribe((JSONObject event) -> {
                     if (event.getInt("type") % EventTypes.TYPE_WIFI_CONNECTION == 0)
-                        wifiConnected = event.getBoolean("connected");
+                        wifiConnected = event.getInt("state") != WIFI_STATE_DISCONNECTED;
                     else if (event.getInt("type") % EventTypes.TYPE_CONNECT_TO_SERVER == 0)
-                        connect(event.getString("ip"),event.getInt("port"));
+                        connect(event.getString("ip"), event.getInt("port"));
                 });
         return Observable.merge(messages.subscribeOn(Schedulers.io())
                 , connectionState.subscribeOn(Schedulers.io()));
