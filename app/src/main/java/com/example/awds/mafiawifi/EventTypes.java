@@ -9,4 +9,7 @@ public class EventTypes {
     public static final int TYPE_MESSAGE = 7;
     public static final int TYPE_WIFI_CONNECTION = 11;
     public static final int TYPE_CONNECT_TO_SERVER = 13;
+    public static final int TYPE_FINISH = 19;
+    public static final int TYPE_NEXT_ENGINE = 23;
+    public static final int TYPE_UPDATE_NOTIFICATION = 29;
 }

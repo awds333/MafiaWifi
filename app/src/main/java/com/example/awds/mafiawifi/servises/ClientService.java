@@ -8,29 +8,34 @@ import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
+import android.util.Log;
 
 import com.example.awds.mafiawifi.R;
 import com.example.awds.mafiawifi.activitys.client.ClientGameActivity;
 import com.example.awds.mafiawifi.activitys.client.ServerSearchingActivity;
 import com.example.awds.mafiawifi.activitys.client.WaitingForGameStartActivity;
 import com.example.awds.mafiawifi.engines.Engine;
+import com.example.awds.mafiawifi.engines.client.GameClientEngine;
 import com.example.awds.mafiawifi.engines.client.ServerSearchingEngine;
+import com.example.awds.mafiawifi.engines.client.WaitingClientEngine;
 import com.example.awds.mafiawifi.netclasses.ClientSocketManager;
 import com.example.awds.mafiawifi.netclasses.WifiStateListener;
 import com.example.awds.mafiawifi.receivers.MyReceiver;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import io.reactivex.Observable;
-import io.reactivex.annotations.Nullable;
-import io.reactivex.disposables.Disposable;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
 
 import static com.example.awds.mafiawifi.EventTypes.ADDRESS_ACTIVITY;
 import static com.example.awds.mafiawifi.EventTypes.ADDRESS_ENGINE;
+import static com.example.awds.mafiawifi.EventTypes.ADDRESS_SERVICE;
 import static com.example.awds.mafiawifi.EventTypes.ADDRESS_SOCKET_MANAGER;
-import static com.example.awds.mafiawifi.EventTypes.TYPE_WIFI_CONNECTION;
+import static com.example.awds.mafiawifi.EventTypes.TYPE_FINISH;
+import static com.example.awds.mafiawifi.EventTypes.TYPE_NEXT_ENGINE;
+import static com.example.awds.mafiawifi.EventTypes.TYPE_UPDATE_NOTIFICATION;
 import static com.example.awds.mafiawifi.activitys.MainActivity.MY_TAG;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_PLAYING_AS_CLIENT;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_SEARCHING_FOR_SERVERS;
@@ -44,9 +49,8 @@ public class ClientService extends Service {
     private ClientSocketManager socketManager;
     private int state;
     private SharedPreferences preferences;
-    private Subject<JSONObject> socketManagerInput, engineInput, activityInput, activityOutput, engineOutput;
+    private Subject<JSONObject> socketManagerInput, engineInput, activityInput, activityOutput, engineOutput, broadcastInput;
     private Observable<JSONObject> serviceInput, socketManagerOutput, engineInputObservable, wifiStateObservable, activityInputObservable;
-    private Disposable engineOutputDisposable;
     private WifiStateListener wifiStateListener;
 
     @Override
@@ -60,25 +64,22 @@ public class ClientService extends Service {
         engineOutput = PublishSubject.create();
         activityInput = PublishSubject.create();
         activityOutput = PublishSubject.create();
-
+        broadcastInput = PublishSubject.create();
         engine = new ServerSearchingEngine();
         socketManager = ClientSocketManager.getManager();
         wifiStateListener = new WifiStateListener(this);
 
-        engineOutputDisposable = engine.bind(engineInput).subscribe((JSONObject j) -> engineOutput.onNext(j), e -> engineOutput.onError(e));
+        engine.bind(engineInput).subscribe((JSONObject j) -> engineOutput.onNext(j), e -> engineOutput.onError(e));
         socketManagerOutput = socketManager.bind(socketManagerInput);
-        wifiStateObservable = wifiStateListener.getObservable()
-                .map(i -> {
-                    JSONObject object = new JSONObject();
-                    object.put("type", TYPE_WIFI_CONNECTION);
-                    object.put("state", i);
-                    return object;
-                });
+        wifiStateObservable = wifiStateListener.getObservable();
 
+        Observable.merge(activityOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0), broadcastInput
+                , socketManagerOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0))
+                .subscribe(j -> reactMessage(j), e -> Log.d(MY_TAG, e.toString()));
         Observable.merge(wifiStateObservable, engineOutput.filter(j -> j.getInt("address") % ADDRESS_SOCKET_MANAGER == 0))
                 .subscribe(socketManagerInput);
         engineInputObservable = Observable.merge(wifiStateObservable, socketManagerOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0)
-                ,activityOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0));
+                , activityOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0));
         engineInputObservable.subscribe(engineInput);
         activityInputObservable = Observable.merge(wifiStateObservable, engineOutput.filter(j -> j.getInt("address") % ADDRESS_ACTIVITY == 0));
         activityInputObservable.subscribe(activityInput);
@@ -102,7 +103,22 @@ public class ClientService extends Service {
         }
     }
 
-    private void updateNotification(@Nullable String text) {
+    private void reactMessage(JSONObject object) {
+        try {
+            int type = object.getInt("type");
+            if(type % TYPE_FINISH==0){
+
+            } else if(type % TYPE_UPDATE_NOTIFICATION==0){
+                updateNotification(object.getString("text"));
+            } else if(type % TYPE_NEXT_ENGINE==0){
+                changeEngine();
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateNotification(String text) {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
         builder.setOngoing(false)
                 .setSmallIcon(R.mipmap.ic_launcher)
@@ -111,11 +127,11 @@ public class ClientService extends Service {
         switch (state) {
             case STATE_SEARCHING_FOR_SERVERS:
                 notificationIntent = new Intent(this, ServerSearchingActivity.class);
-                builder.setContentText(getString(R.string.searching));
+                builder.setContentText(text);
                 break;
             case STATE_WAITING_FOR_GAME_START:
                 notificationIntent = new Intent(this, WaitingForGameStartActivity.class);
-                builder.setContentText(getString(R.string.soon_the_beginning));
+                builder.setContentText(text);
                 break;
             case STATE_PLAYING_AS_CLIENT:
                 notificationIntent = new Intent(this, ClientGameActivity.class);
@@ -135,6 +151,25 @@ public class ClientService extends Service {
         notification = builder.build();
 
         startForeground(MY_ID, notification);
+    }
+
+    private void changeEngine(){
+        switch (state){
+            case STATE_SEARCHING_FOR_SERVERS:
+                changeState(STATE_WAITING_FOR_GAME_START);
+                engine = new WaitingClientEngine();
+                break;
+            case STATE_WAITING_FOR_GAME_START:
+                changeState(STATE_PLAYING_AS_CLIENT);
+                engine = new GameClientEngine();
+                break;
+            default:
+                return;
+        }
+        engineInput.onComplete();
+        engineInput = PublishSubject.create();
+        engineInputObservable.subscribe(engineInput);
+        engine.bind(engineInput).subscribe((JSONObject j) -> engineOutput.onNext(j), e -> engineOutput.onError(e));
     }
 
     private void changeState(int state) {

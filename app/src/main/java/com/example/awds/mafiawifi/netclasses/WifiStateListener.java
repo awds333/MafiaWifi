@@ -9,11 +9,15 @@ import com.example.awds.mafiawifi.netclasses.WifiApUtils.WifiApManager;
 import com.github.pwittchen.reactivenetwork.library.rx2.ConnectivityPredicate;
 import com.github.pwittchen.reactivenetwork.library.rx2.ReactiveNetwork;
 
+import org.json.JSONObject;
+
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
 import io.reactivex.observables.ConnectableObservable;
 import io.reactivex.schedulers.Schedulers;
+
+import static com.example.awds.mafiawifi.EventTypes.TYPE_WIFI_CONNECTION;
 
 public class WifiStateListener {
 
@@ -30,8 +34,8 @@ public class WifiStateListener {
         this.context = context;
     }
 
-    public Observable<Integer> getObservable(){
-        if(observable==null) {
+    public Observable<JSONObject> getObservable() {
+        if (observable == null) {
             wifiApManager = new WifiApManager(context);
             Observable<Boolean> wifiObservable = ReactiveNetwork.observeNetworkConnectivity(context)
                     .subscribeOn(Schedulers.io())
@@ -42,7 +46,7 @@ public class WifiStateListener {
                         return false;
                     }).distinctUntilChanged();
             Observable wifiApObservable = Observable.interval(300, TimeUnit.MILLISECONDS)
-                    .map(t ->wifiApManager.isWifiApEnabled())
+                    .map(t -> wifiApManager.isWifiApEnabled())
                     .subscribeOn(Schedulers.io())
                     .distinctUntilChanged();
             connectableObservable = Observable.combineLatest(wifiApObservable, wifiObservable, (a, w) -> {
@@ -53,13 +57,18 @@ public class WifiStateListener {
                     return WIFI_STATE_CONNECTED;
                 return WIFI_STATE_DISCONNECTED;
             }).publish();
-            observable = connectableObservable.refCount();
+            observable = connectableObservable.refCount().map(i -> {
+                JSONObject object = new JSONObject();
+                object.put("type", TYPE_WIFI_CONNECTION);
+                object.put("state", i);
+                return object;
+            });
         }
         return observable;
     }
 
-    public void startListen(){
-        if(observable!=null){
+    public void startListen() {
+        if (observable != null) {
             connectableObservable.connect();
         }
     }
