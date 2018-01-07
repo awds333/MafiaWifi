@@ -42,8 +42,8 @@ public class NamePickDialog extends DialogFragment implements View.OnClickListen
             if (!s.replaceAll("\\s+", "").equals("")) {
                 Intent intent = new Intent(context, ServerSearchingActivity.class);
                 Intent serviceStart = new Intent(context, ClientService.class);
-                intent.putExtra("name", s);
                 serviceStart.putExtra("name", s);
+                serviceStart.putExtra("type","start");
                 if (sPreferences.getBoolean("remember", false)) {
                     SharedPreferences.Editor editor = sPreferences.edit();
                     editor.putString("name", s);

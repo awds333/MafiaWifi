@@ -37,6 +37,7 @@ import static com.example.awds.mafiawifi.EventTypes.TYPE_FINISH;
 import static com.example.awds.mafiawifi.EventTypes.TYPE_NEXT_ENGINE;
 import static com.example.awds.mafiawifi.EventTypes.TYPE_UPDATE_NOTIFICATION;
 import static com.example.awds.mafiawifi.activitys.MainActivity.MY_TAG;
+import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_MAIN_ACTIVITY;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_PLAYING_AS_CLIENT;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_SEARCHING_FOR_SERVERS;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_WAITING_FOR_GAME_START;
@@ -49,20 +50,19 @@ public class ClientService extends Service {
     private ClientSocketManager socketManager;
     private int state;
     private SharedPreferences preferences;
-    private Subject<JSONObject> socketManagerInput, engineInput, activityInput, activityOutput, engineOutput, broadcastInput;
-    private Observable<JSONObject> serviceInput, socketManagerOutput, engineInputObservable, wifiStateObservable, activityInputObservable;
+    private Subject<JSONObject> socketManagerInput, engineInput, activityInput, activityOutput, engineOutput, broadcastInput, wifiStateOutput;
+    private Observable<JSONObject> socketManagerOutput, engineInputObservable, activityInputObservable;
     private WifiStateListener wifiStateListener;
+    private String name;
 
     @Override
     public void onCreate() {
         super.onCreate();
         changeState(STATE_SEARCHING_FOR_SERVERS);
-
-        serviceInput = PublishSubject.create();
+        Log.d("awdsawds","createServece");
         socketManagerInput = PublishSubject.create();
         engineInput = PublishSubject.create();
         engineOutput = PublishSubject.create();
-        activityInput = PublishSubject.create();
         activityOutput = PublishSubject.create();
         broadcastInput = PublishSubject.create();
         engine = new ServerSearchingEngine();
@@ -71,46 +71,66 @@ public class ClientService extends Service {
 
         engine.bind(engineInput).subscribe((JSONObject j) -> engineOutput.onNext(j), e -> engineOutput.onError(e));
         socketManagerOutput = socketManager.bind(socketManagerInput);
-        wifiStateObservable = wifiStateListener.getObservable();
+        wifiStateOutput = PublishSubject.create();
 
         Observable.merge(activityOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0), broadcastInput
                 , socketManagerOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0))
                 .subscribe(j -> reactMessage(j), e -> Log.d(MY_TAG, e.toString()));
-        Observable.merge(wifiStateObservable, engineOutput.filter(j -> j.getInt("address") % ADDRESS_SOCKET_MANAGER == 0))
+        Observable.merge(wifiStateOutput, engineOutput.filter(j -> j.getInt("address") % ADDRESS_SOCKET_MANAGER == 0))
                 .subscribe(socketManagerInput);
-        engineInputObservable = Observable.merge(wifiStateObservable, socketManagerOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0)
+        engineInputObservable = Observable.merge(wifiStateOutput, socketManagerOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0)
                 , activityOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0));
         engineInputObservable.subscribe(engineInput);
-        activityInputObservable = Observable.merge(wifiStateObservable, engineOutput.filter(j -> j.getInt("address") % ADDRESS_ACTIVITY == 0));
-        activityInputObservable.subscribe(activityInput);
-
-        wifiStateListener.startListen();
+        activityInputObservable = Observable.merge(wifiStateOutput, engineOutput.filter(j -> j.getInt("address") % ADDRESS_ACTIVITY == 0));
+        wifiStateListener.getObservable().subscribe(wifiStateOutput);
+        updateNotification(getString(R.string.searching));
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        String type = intent.getStringExtra("type");
+        Log.d("awdsawds","service command: type "+type);
+        if (type.equals("start"))
+            name = intent.getStringExtra("name");
+        else if (type.equals("finish")) {
+            JSONObject object = new JSONObject();
+            try {
+                object.put("type", TYPE_FINISH);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            broadcastInput.onNext(object);
+        }
         return START_STICKY;
     }
 
     @Override
     public IBinder onBind(Intent intent) {
+        Log.d("awdsawds","bindService");
         return binder;
     }
 
-    class MyBinder extends Binder {
-        ClientService getService() {
+    public class MyBinder extends Binder {
+        public ClientService getService() {
             return ClientService.this;
         }
+    }
+
+    public Observable<JSONObject> bind(Observable<JSONObject> observable) {
+        activityInput = PublishSubject.create();
+        activityInputObservable.subscribe(activityInput);
+        observable.subscribe(j -> activityOutput.onNext(j), e -> activityOutput.onError(e),activityInput::onComplete);
+        return activityInput;
     }
 
     private void reactMessage(JSONObject object) {
         try {
             int type = object.getInt("type");
-            if(type % TYPE_FINISH==0){
-
-            } else if(type % TYPE_UPDATE_NOTIFICATION==0){
+            if (type % TYPE_FINISH == 0) {
+                stopSelf();
+            } else if (type % TYPE_UPDATE_NOTIFICATION == 0) {
                 updateNotification(object.getString("text"));
-            } else if(type % TYPE_NEXT_ENGINE==0){
+            } else if (type % TYPE_NEXT_ENGINE == 0) {
                 changeEngine();
             }
         } catch (JSONException e) {
@@ -142,7 +162,10 @@ public class ClientService extends Service {
         notificationIntent.addCategory(Intent.CATEGORY_LAUNCHER);
         notificationIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         PendingIntent contentIntent = PendingIntent.getActivity(getApplicationContext(), 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-        PendingIntent toBroad = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent(this, MyReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT);
+
+        Intent broadIntent = new Intent(this, MyReceiver.class);
+        broadIntent.putExtra("type", "client");
+        PendingIntent toBroad = PendingIntent.getBroadcast(getApplicationContext(), 0, broadIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         builder.setContentIntent(contentIntent);
         builder.addAction(android.R.drawable.btn_dialog, getString(R.string.exit), toBroad);
@@ -153,8 +176,8 @@ public class ClientService extends Service {
         startForeground(MY_ID, notification);
     }
 
-    private void changeEngine(){
-        switch (state){
+    private void changeEngine() {
+        switch (state) {
             case STATE_SEARCHING_FOR_SERVERS:
                 changeState(STATE_WAITING_FOR_GAME_START);
                 engine = new WaitingClientEngine();
@@ -183,6 +206,12 @@ public class ClientService extends Service {
 
     @Override
     public void onDestroy() {
+        Log.d("awdsawds","destroyService");
+        changeState(STATE_MAIN_ACTIVITY);
         super.onDestroy();
+        stopForeground(true);
+        socketManagerInput.onComplete();
+        activityInput.onComplete();
+        broadcastInput.onComplete();
     }
 }

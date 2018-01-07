@@ -40,6 +40,10 @@ public class ClientSocketManager {
                         wifiConnected = event.getInt("state") != WIFI_STATE_DISCONNECTED;
                     else if (event.getInt("type") % EventTypes.TYPE_CONNECT_TO_SERVER == 0)
                         connect(event.getString("ip"), event.getInt("port"));
+                }, e -> {
+                }, () -> {
+                    connectionState.onComplete();
+                    messages.onComplete();
                 });
         return Observable.merge(messages.subscribeOn(Schedulers.io())
                 , connectionState.subscribeOn(Schedulers.io()));

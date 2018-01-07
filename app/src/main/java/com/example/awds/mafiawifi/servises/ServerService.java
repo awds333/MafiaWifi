@@ -16,7 +16,7 @@ public class ServerService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-
+        return null;
     }
 
     private void changeState(int state) {

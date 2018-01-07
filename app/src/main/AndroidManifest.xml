@@ -40,7 +40,8 @@
             android:exported="false" />
 
         <activity android:name=".activitys.client.WaitingForGameStartActivity" />
-        <activity android:name=".activitys.client.ClientGameActivity"></activity>
+        <activity android:name=".activitys.client.ClientGameActivity" />
+        <activity android:name=".activitys.server.ServerGameActivity"></activity>
     </application>
 
 </manifest>
