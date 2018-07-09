@@ -1,6 +1,8 @@
 package com.example.awds.mafiawifi.netclasses;
 
 
+import android.util.Log;
+
 import com.example.awds.mafiawifi.EventTypes;
 
 import org.json.JSONObject;
@@ -44,9 +46,9 @@ public class ClientSocketManager {
                 }, () -> {
                     connectionState.onComplete();
                     messages.onComplete();
+                    Log.d("awdsawds","ClientSocketManager onComplete");
                 });
-        return Observable.merge(messages.subscribeOn(Schedulers.io())
-                , connectionState.subscribeOn(Schedulers.io()));
+        return Observable.merge(messages, connectionState);
     }
 
     private void connect(String ip, int port) {

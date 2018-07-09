@@ -1,25 +1,36 @@
 package com.example.awds.mafiawifi.netclasses;
 
 
-import java.io.IOException;
+import android.util.Log;
 
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.util.concurrent.TimeUnit;
+
+import io.reactivex.BackpressureStrategy;
+import io.reactivex.Flowable;
 import io.reactivex.Observable;
 import io.reactivex.schedulers.Schedulers;
-import io.reactivex.subjects.BehaviorSubject;
+
 
 public class IpPinger {
-    public static Observable startPing(Observable<Integer> wifiStateObservable) {
-        Observable justIps = Observable.create(e -> {
-            for (int i = 1; i < 256; i++) {
-                e.onNext(i);
-            }
-            e.onComplete();
-        });
-        return BehaviorSubject.combineLatest(justIps, wifiStateObservable, (ip, connected) -> (int)ip*connected)
-                .doOnNext(ip -> {
-                    if ((int) ip == 0)
-                        throw new IOException();
-                }).flatMap(ip -> Observable.just(ip))
-                .subscribeOn(Schedulers.io());
+
+    public IpPinger() {
+    }
+
+    public Flowable<String> startPing(Observable<JSONObject> wifiStateObservable) {
+
+        Flowable justIps = Flowable.combineLatest(Flowable.range(1, 255).delay(1,TimeUnit.SECONDS).repeat(),
+                wifiStateObservable.toFlowable(BackpressureStrategy.LATEST), (ip, tail) -> tail.getString("ipTail") + ip)
+                .flatMap(i -> Flowable.just(i))
+                .subscribeOn(Schedulers.io())
+                .flatMap(ip -> {
+                    if (InetAddress.getByName(ip).isReachable(200))
+                        return Flowable.just(ip);
+                    return Flowable.empty();
+                });
+        return justIps;
     }
 }

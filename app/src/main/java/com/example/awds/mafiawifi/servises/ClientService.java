@@ -26,6 +26,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import io.reactivex.Observable;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
 
@@ -53,6 +54,7 @@ public class ClientService extends Service {
     private Subject<JSONObject> socketManagerInput, engineInput, activityInput, activityOutput, engineOutput, broadcastInput, wifiStateOutput;
     private Observable<JSONObject> socketManagerOutput, engineInputObservable, activityInputObservable;
     private WifiStateListener wifiStateListener;
+    private Disposable wifiListenerDisposable;
     private String name;
 
     @Override
@@ -65,7 +67,7 @@ public class ClientService extends Service {
         engineOutput = PublishSubject.create();
         activityOutput = PublishSubject.create();
         broadcastInput = PublishSubject.create();
-        engine = new ServerSearchingEngine();
+        engine = new ServerSearchingEngine(this);
         socketManager = ClientSocketManager.getManager();
         wifiStateListener = new WifiStateListener(this);
 
@@ -82,7 +84,8 @@ public class ClientService extends Service {
                 , activityOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0));
         engineInputObservable.subscribe(engineInput);
         activityInputObservable = Observable.merge(wifiStateOutput, engineOutput.filter(j -> j.getInt("address") % ADDRESS_ACTIVITY == 0));
-        wifiStateListener.getObservable().subscribe(wifiStateOutput);
+        wifiListenerDisposable = wifiStateListener.getObservable().subscribe(wifiStateOutput::onNext,wifiStateOutput::onError,wifiStateOutput::onComplete);
+
         updateNotification(getString(R.string.searching));
     }
 
@@ -206,12 +209,14 @@ public class ClientService extends Service {
 
     @Override
     public void onDestroy() {
+        wifiListenerDisposable.dispose();
+        engineInput.onComplete();
+        socketManagerInput.onComplete();
+        activityInput.onComplete();
+        broadcastInput.onComplete();
         Log.d("awdsawds","destroyService");
         changeState(STATE_MAIN_ACTIVITY);
         super.onDestroy();
         stopForeground(true);
-        socketManagerInput.onComplete();
-        activityInput.onComplete();
-        broadcastInput.onComplete();
     }
 }
