@@ -34,9 +34,10 @@ import static com.example.awds.mafiawifi.EventTypes.ADDRESS_ACTIVITY;
 import static com.example.awds.mafiawifi.EventTypes.ADDRESS_ENGINE;
 import static com.example.awds.mafiawifi.EventTypes.ADDRESS_SERVICE;
 import static com.example.awds.mafiawifi.EventTypes.ADDRESS_SOCKET_MANAGER;
-import static com.example.awds.mafiawifi.EventTypes.TYPE_FINISH;
-import static com.example.awds.mafiawifi.EventTypes.TYPE_NEXT_ENGINE;
-import static com.example.awds.mafiawifi.EventTypes.TYPE_UPDATE_NOTIFICATION;
+import static com.example.awds.mafiawifi.EventTypes.EVENT_FINISH;
+import static com.example.awds.mafiawifi.EventTypes.EVENT_NEXT_ENGINE;
+import static com.example.awds.mafiawifi.EventTypes.EVENT_UPDATE_NOTIFICATION;
+import static com.example.awds.mafiawifi.EventTypes.TYPE_CHANGE_STATE;
 import static com.example.awds.mafiawifi.activitys.MainActivity.MY_TAG;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_MAIN_ACTIVITY;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_PLAYING_AS_CLIENT;
@@ -61,7 +62,7 @@ public class ClientService extends Service {
     public void onCreate() {
         super.onCreate();
         changeState(STATE_SEARCHING_FOR_SERVERS);
-        Log.d("awdsawds","createServece");
+        Log.d("awdsawds", "createServece");
         socketManagerInput = PublishSubject.create();
         engineInput = PublishSubject.create();
         engineOutput = PublishSubject.create();
@@ -84,7 +85,7 @@ public class ClientService extends Service {
                 , activityOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0));
         engineInputObservable.subscribe(engineInput);
         activityInputObservable = Observable.merge(wifiStateOutput, engineOutput.filter(j -> j.getInt("address") % ADDRESS_ACTIVITY == 0));
-        wifiListenerDisposable = wifiStateListener.getObservable().subscribe(wifiStateOutput::onNext,wifiStateOutput::onError,wifiStateOutput::onComplete);
+        wifiListenerDisposable = wifiStateListener.getObservable().subscribe(wifiStateOutput::onNext, wifiStateOutput::onError, wifiStateOutput::onComplete);
 
         updateNotification(getString(R.string.searching));
     }
@@ -92,13 +93,14 @@ public class ClientService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         String type = intent.getStringExtra("type");
-        Log.d("awdsawds","service command: type "+type);
+        Log.d("awdsawds", "service command: type " + type);
         if (type.equals("start"))
             name = intent.getStringExtra("name");
         else if (type.equals("finish")) {
             JSONObject object = new JSONObject();
             try {
-                object.put("type", TYPE_FINISH);
+                object.put("type", TYPE_CHANGE_STATE);
+                object.put("event", EVENT_FINISH);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -109,7 +111,7 @@ public class ClientService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        Log.d("awdsawds","bindService");
+        Log.d("awdsawds", "bindService");
         return binder;
     }
 
@@ -122,19 +124,22 @@ public class ClientService extends Service {
     public Observable<JSONObject> bind(Observable<JSONObject> observable) {
         activityInput = PublishSubject.create();
         activityInputObservable.subscribe(activityInput);
-        observable.subscribe(j -> activityOutput.onNext(j), e -> activityOutput.onError(e),activityInput::onComplete);
+        observable.subscribe(j -> activityOutput.onNext(j), e -> activityOutput.onError(e), activityInput::onComplete);
         return activityInput;
     }
 
     private void reactMessage(JSONObject object) {
         try {
             int type = object.getInt("type");
-            if (type % TYPE_FINISH == 0) {
-                stopSelf();
-            } else if (type % TYPE_UPDATE_NOTIFICATION == 0) {
-                updateNotification(object.getString("text"));
-            } else if (type % TYPE_NEXT_ENGINE == 0) {
-                changeEngine();
+            int event = object.getInt("event");
+            if (type % TYPE_CHANGE_STATE == 0) {
+                if (event % EVENT_FINISH == 0) {
+                    stopSelf();
+                } else if (event % EVENT_UPDATE_NOTIFICATION == 0) {
+                    updateNotification(object.getString("text"));
+                } else if (type % EVENT_NEXT_ENGINE == 0) {
+                    changeEngine();
+                }
             }
         } catch (JSONException e) {
             e.printStackTrace();
@@ -214,7 +219,7 @@ public class ClientService extends Service {
         socketManagerInput.onComplete();
         activityInput.onComplete();
         broadcastInput.onComplete();
-        Log.d("awdsawds","destroyService");
+        Log.d("awdsawds", "destroyService");
         changeState(STATE_MAIN_ACTIVITY);
         super.onDestroy();
         stopForeground(true);

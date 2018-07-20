@@ -34,19 +34,20 @@ public class ClientSocketManager {
     }
 
     public Observable<JSONObject> bind(Observable<JSONObject> observable) {
-        info = observable.filter((JSONObject event) ->
-                event.getInt("type") % EventTypes.TYPE_MESSAGE != 0)
+        info = observable.filter((JSONObject message) ->
+                message.getInt("type") % EventTypes.TYPE_MESSAGE != 0)
                 .observeOn(Schedulers.io())
-                .subscribe((JSONObject event) -> {
-                    if (event.getInt("type") % EventTypes.TYPE_WIFI_CONNECTION == 0)
-                        wifiConnected = event.getInt("state") != WIFI_STATE_DISCONNECTED;
-                    else if (event.getInt("type") % EventTypes.TYPE_CONNECT_TO_SERVER == 0)
-                        connect(event.getString("ip"), event.getInt("port"));
+                .subscribe((JSONObject message) -> {
+                    if (message.getInt("type") % EventTypes.TYPE_WIFI_CONNECTION == 0)
+                        wifiConnected = message.getInt("state") != WIFI_STATE_DISCONNECTED;
+                    else if (message.getInt("type") % EventTypes.TYPE_CHANGE_STATE == 0)
+                        if (message.getInt("event") % EventTypes.EVENT_CONNECT_TO_SERVER == 0)
+                            connect(message.getString("ip"), message.getInt("port"));
                 }, e -> {
                 }, () -> {
                     connectionState.onComplete();
                     messages.onComplete();
-                    Log.d("awdsawds","ClientSocketManager onComplete");
+                    Log.d("awdsawds", "ClientSocketManager onComplete");
                 });
         return Observable.merge(messages, connectionState);
     }

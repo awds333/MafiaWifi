@@ -30,7 +30,7 @@ public class WifiStateListener {
 
     private Context context;
     private Observable observable;
-    private WifiManager wifiManager;
+    private volatile WifiManager wifiManager;
     private Method getWifiApState;
 
     public WifiStateListener(Context context) {
