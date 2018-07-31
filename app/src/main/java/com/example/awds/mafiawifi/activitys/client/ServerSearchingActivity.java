@@ -14,6 +14,7 @@ import com.example.awds.mafiawifi.R;
 import com.example.awds.mafiawifi.activitys.MainActivity;
 import com.example.awds.mafiawifi.activitys.server.ServerGameActivity;
 import com.example.awds.mafiawifi.activitys.server.WaitingForPlayersActivity;
+import com.example.awds.mafiawifi.interfaces.Bindable;
 import com.example.awds.mafiawifi.servises.ClientService;
 
 import org.json.JSONObject;
@@ -37,7 +38,7 @@ public class ServerSearchingActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.d("awdsawds","createServActivity");
+        Log.d("awdsawds", "createServActivity");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_server_serch);
         SharedPreferences preferences = getSharedPreferences(MY_TAG, MODE_PRIVATE);
@@ -69,11 +70,12 @@ public class ServerSearchingActivity extends AppCompatActivity {
                     @Override
                     public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
                         serviceInput = PublishSubject.create();
-                        ClientService service = ((ClientService.MyBinder) iBinder).getService();
+                        Bindable service = (Bindable) ((ClientService.MyBinder) iBinder).getService();
                         serviceOutput = service.bind(serviceInput);
-                        serviceOutput.subscribe(j-> Log.d("awdsawds","message To Activity "+j.toString()), e->{},()->{
-                            Log.d("awdsawds","service disconnect Message");
-                            if(!context.isFinishing())
+                        serviceOutput.subscribe(j -> Log.d("awdsawds", "message To Activity " + j.toString()), e -> {
+                        }, () -> {
+                            Log.d("awdsawds", "service disconnect Message");
+                            if (!context.isFinishing())
                                 context.finish();
                         });
                         unbindService(connection);
@@ -90,7 +92,7 @@ public class ServerSearchingActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        Log.d("awdsawds","destroyServActivity");
+        Log.d("awdsawds", "destroyServActivity");
         if (serviceInput != null)
             serviceInput.onComplete();
         super.onDestroy();

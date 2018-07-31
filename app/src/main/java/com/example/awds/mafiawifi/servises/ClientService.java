@@ -5,7 +5,6 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Binder;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
@@ -18,6 +17,7 @@ import com.example.awds.mafiawifi.engines.Engine;
 import com.example.awds.mafiawifi.engines.client.GameClientEngine;
 import com.example.awds.mafiawifi.engines.client.ServerSearchingEngine;
 import com.example.awds.mafiawifi.engines.client.WaitingClientEngine;
+import com.example.awds.mafiawifi.interfaces.Bindable;
 import com.example.awds.mafiawifi.netclasses.ClientSocketManager;
 import com.example.awds.mafiawifi.netclasses.WifiStateListener;
 import com.example.awds.mafiawifi.receivers.MyReceiver;
@@ -44,9 +44,9 @@ import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_PLAYING_AS
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_SEARCHING_FOR_SERVERS;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_WAITING_FOR_GAME_START;
 
-public class ClientService extends Service {
+public class ClientService extends Service implements Bindable{
 
-    private MyBinder binder = new MyBinder();
+    private final MyBinder binder = new MyBinder(this);
     private final int MY_ID = 324;
     private Engine engine;
     private ClientSocketManager socketManager;
@@ -62,7 +62,7 @@ public class ClientService extends Service {
     public void onCreate() {
         super.onCreate();
         changeState(STATE_SEARCHING_FOR_SERVERS);
-        Log.d("awdsawds", "createServece");
+        Log.d("awdsawds", "createService");
         socketManagerInput = PublishSubject.create();
         engineInput = PublishSubject.create();
         engineOutput = PublishSubject.create();
@@ -115,12 +115,7 @@ public class ClientService extends Service {
         return binder;
     }
 
-    public class MyBinder extends Binder {
-        public ClientService getService() {
-            return ClientService.this;
-        }
-    }
-
+    @Override
     public Observable<JSONObject> bind(Observable<JSONObject> observable) {
         activityInput = PublishSubject.create();
         activityInputObservable.subscribe(activityInput);
