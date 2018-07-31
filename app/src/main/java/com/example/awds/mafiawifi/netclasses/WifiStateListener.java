@@ -9,9 +9,6 @@ import android.net.wifi.WifiManager;
 import android.text.format.Formatter;
 import android.util.Log;
 
-import com.github.pwittchen.reactivenetwork.library.rx2.ConnectivityPredicate;
-import com.github.pwittchen.reactivenetwork.library.rx2.ReactiveNetwork;
-
 import org.json.JSONObject;
 
 import java.lang.reflect.Method;
@@ -30,32 +27,34 @@ public class WifiStateListener {
 
     private Context context;
     private Observable observable;
-    private volatile WifiManager wifiManager;
+    private WifiManager wifiManager;
+    private ConnectivityManager connectivityManager;
     private Method getWifiApState;
 
     public WifiStateListener(Context context) {
-        Log.d("awdsawds","createWifiObservable");
+        Log.d("awdsawds", "createWifiObservable");
         this.context = context;
     }
 
     public Observable<JSONObject> getObservable() {
-        Log.d("awdsawds","getWifiObservable");
+        Log.d("awdsawds", "getWifiObservable");
         if (observable == null) {
-            Log.d("awdsawds","activateWifiObservable");
+            Log.d("awdsawds", "activateWifiObservable");
             wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+            connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
             try {
                 getWifiApState = wifiManager.getClass().getMethod("getWifiApState");
             } catch (NoSuchMethodException e) {
                 e.printStackTrace();
             }
-            Observable<Boolean> wifiObservable = ReactiveNetwork.observeNetworkConnectivity(context)
+            Observable<Boolean> wifiObservable = Observable.interval(300, TimeUnit.MILLISECONDS)
                     .subscribeOn(Schedulers.io())
-                    .filter(ConnectivityPredicate.hasType(ConnectivityManager.TYPE_WIFI))
-                    .map(connectivity -> {
-                        if (connectivity.getState().equals(NetworkInfo.State.CONNECTED))
-                            return true;
-                        return false;
-                    }).distinctUntilChanged();
+                    .map(i -> {
+                        NetworkInfo info = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+                        return info;
+                    })
+                    .map(info -> info.isConnected())
+                    .distinctUntilChanged();
             Observable<Boolean> wifiApObservable = Observable.interval(300, TimeUnit.MILLISECONDS)
                     .map(t -> (Integer) getWifiApState.invoke(wifiManager))
                     .map(c -> c == 13)
@@ -79,13 +78,13 @@ public class WifiStateListener {
                         WifiInfo wifiInfo = wifiManager.getConnectionInfo();
                         int ip = wifiInfo.getIpAddress();
                         String ipAddress = Formatter.formatIpAddress(ip);
-                        j.put("ipTail",ipAddress.substring(0, ipAddress.lastIndexOf('.') + 1));
+                        j.put("ipTail", ipAddress.substring(0, ipAddress.lastIndexOf('.') + 1));
                         break;
                     case WifiStateListener.WIFI_STATE_AP:
-                        j.put("ipTail","192.168.43.");
+                        j.put("ipTail", "192.168.43.");
                         break;
                     default:
-                        j.put("ipTail","0.0.0.");
+                        j.put("ipTail", "0.0.0.");
                 }
             });
         }

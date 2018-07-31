@@ -77,8 +77,8 @@ public class ClientService extends Service {
         wifiStateOutput = PublishSubject.create();
 
         Observable.merge(activityOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0), broadcastInput
-                , socketManagerOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0))
-                .subscribe(j -> reactMessage(j), e -> Log.d(MY_TAG, e.toString()));
+                , socketManagerOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0), engineOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0))
+                        .subscribe(j -> reactMessage(j), e -> Log.d(MY_TAG, e.toString()));
         Observable.merge(wifiStateOutput, engineOutput.filter(j -> j.getInt("address") % ADDRESS_SOCKET_MANAGER == 0))
                 .subscribe(socketManagerInput);
         engineInputObservable = Observable.merge(wifiStateOutput, socketManagerOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0)

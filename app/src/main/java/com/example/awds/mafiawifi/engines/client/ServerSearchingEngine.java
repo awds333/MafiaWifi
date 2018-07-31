@@ -21,6 +21,7 @@ import io.reactivex.subjects.PublishSubject;
 import static com.example.awds.mafiawifi.EventTypes.ADDRESS_ACTIVITY;
 import static com.example.awds.mafiawifi.EventTypes.EVENT_NEW_SERVER_FOUND;
 import static com.example.awds.mafiawifi.EventTypes.EVENT_SERVERS_LIST_UPDATE;
+import static com.example.awds.mafiawifi.EventTypes.TYPE_MESSAGE;
 import static com.example.awds.mafiawifi.EventTypes.TYPE_WIFI_CONNECTION;
 
 public class ServerSearchingEngine extends Engine {
@@ -86,14 +87,14 @@ public class ServerSearchingEngine extends Engine {
                 serversInfo.put(serversList.get(ip));
             }
             try {
-                message.put("serversInfo",serversInfo);
+                //message.put("serversInfo",serversInfo);
                 message.put("address", ADDRESS_ACTIVITY);
-                message.put("type", message);
+                message.put("type", TYPE_MESSAGE);
                 message.put("event", EVENT_SERVERS_LIST_UPDATE);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-            //sendOutMessage(message);
+            sendOutMessage(message);
         }
     }
 
