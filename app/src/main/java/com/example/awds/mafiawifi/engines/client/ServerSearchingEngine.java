@@ -15,6 +15,7 @@ import java.util.HashMap;
 
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 
 import static com.example.awds.mafiawifi.EventTypes.ADDRESS_ACTIVITY;
@@ -43,7 +44,7 @@ public class ServerSearchingEngine extends Engine {
 
     @Override
     public Observable<JSONObject> bind(Observable<JSONObject> observable) {
-        observable.subscribe(c -> {
+        observable.subscribeOn(Schedulers.io()).subscribe(c -> {
         }, e -> {
         }, () -> {
             Log.d("awdsawds", "ServerSearchEngine disconnect");

@@ -1,13 +1,12 @@
 package com.example.awds.mafiawifi.engines.server;
 
 
-import android.util.Log;
-
 import com.example.awds.mafiawifi.engines.Engine;
 
 import org.json.JSONObject;
 
 import io.reactivex.Observable;
+import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 
 public class WaitingServerEngine extends Engine {
@@ -19,8 +18,11 @@ public class WaitingServerEngine extends Engine {
 
     @Override
     public Observable<JSONObject> bind(Observable<JSONObject> observable) {
-        observable.subscribe(i-> Log.d("awdsawds",i.toString())
-                ,e->Log.d("awdsawds","ERROR IN WAITING ENGINE INPUT " +e.toString()),()->outSubject.onComplete());
+        observable.subscribeOn(Schedulers.io()).subscribe(i -> {
+        }, e -> {
+        }, () -> {
+        });
+
         return outSubject;
     }
 }

@@ -59,12 +59,9 @@ public class ServerNamePickDialog extends DialogFragment implements View.OnClick
                     startService.putExtra("name", name);
                     startService.putExtra("servername", servname);
                     startService.putExtra("type","start");
-                    intent.putExtra("name", name);
-                    intent.putExtra("servername", servname);
                     if (password != null)
                         if (!password.getText().toString().equals("")) {
-                            intent.putExtra("lock", password.getText().toString());
-                            startService.putExtra("lock", password.getText().toString());
+                            startService.putExtra("password", password.getText().toString());
                         }
                     if (sPreferences.getBoolean("remember", false)) {
                         SharedPreferences.Editor editor = sPreferences.edit();

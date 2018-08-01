@@ -53,7 +53,7 @@ public class ClientService extends Service implements Bindable {
     private ClientSocketManager socketManager;
     private int state;
     private SharedPreferences preferences;
-    private Subject<JSONObject> socketManagerInput, engineInput, activityInput, activityOutput, engineOutput, broadcastInput, wifiStateOutput;
+    private Subject<JSONObject> socketManagerInput, engineInput, activityInput, activityOutput, engineOutput, broadcastInput, wifiStateOutput, fromServiceToEngine;
     private Observable<JSONObject> socketManagerOutput, engineInputObservable, activityInputObservable;
     private WifiStateListener wifiStateListener;
     private Disposable wifiListenerDisposable;
@@ -69,6 +69,7 @@ public class ClientService extends Service implements Bindable {
         engineOutput = PublishSubject.create();
         activityOutput = PublishSubject.create();
         broadcastInput = PublishSubject.create();
+        fromServiceToEngine = PublishSubject.create();
         engine = new ServerSearchingEngine();
         socketManager = ClientSocketManager.getManager();
         wifiStateListener = new WifiStateListener(this);
@@ -83,7 +84,7 @@ public class ClientService extends Service implements Bindable {
         Observable.merge(wifiStateOutput, engineOutput.filter(j -> j.getInt("address") % ADDRESS_SOCKET_MANAGER == 0))
                 .subscribe(socketManagerInput);
         engineInputObservable = Observable.merge(wifiStateOutput, socketManagerOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0)
-                , activityOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0));
+                , activityOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0),fromServiceToEngine);
         engineInputObservable.subscribe(engineInput);
         activityInputObservable = Observable.merge(wifiStateOutput, engineOutput.filter(j -> j.getInt("address") % ADDRESS_ACTIVITY == 0));
         wifiListenerDisposable = wifiStateListener.getObservable().subscribe(wifiStateOutput::onNext, wifiStateOutput::onError, wifiStateOutput::onComplete);
@@ -213,6 +214,7 @@ public class ClientService extends Service implements Bindable {
         wifiListenerDisposable.dispose();
         engineInput.onComplete();
         socketManagerInput.onComplete();
+        fromServiceToEngine.onComplete();
         if (activityInput != null)
             activityInput.onComplete();
         broadcastInput.onComplete();

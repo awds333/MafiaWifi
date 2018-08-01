@@ -41,7 +41,6 @@ public class ServerSearchingActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         Log.d("awdsawds", "createServActivity");
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_server_serch);
         SharedPreferences preferences = getSharedPreferences(MY_TAG, MODE_PRIVATE);
         switch (preferences.getInt("state", STATE_MAIN_ACTIVITY)) {
             case STATE_MAIN_ACTIVITY:

@@ -50,11 +50,14 @@ public class ServerService extends Service implements Bindable {
     private SharedPreferences preferences;
     private Engine engine;
     private ServerSocketsManager socketsManager;
-    private Subject<JSONObject> socketsManagerInput, engineInput, activityInput, activityOutput, engineOutput, broadcastInput, wifiStateOutput;
+    private Subject<JSONObject> socketsManagerInput, engineInput, activityInput, activityOutput, engineOutput, broadcastInput, wifiStateOutput, fromServiceToEngine;
     private Observable<JSONObject> socketsManagerOutput, engineInputObservable, activityInputObservable;
     private WifiStateListener wifiStateListener;
     private Disposable wifiListenerDisposable;
+
     private String name;
+    private String serverName;
+    private String password;
 
     @Override
     public void onCreate() {
@@ -66,6 +69,7 @@ public class ServerService extends Service implements Bindable {
         activityOutput = PublishSubject.create();
         broadcastInput = PublishSubject.create();
         socketsManagerInput = PublishSubject.create();
+        fromServiceToEngine = PublishSubject.create();
         engine = new WaitingServerEngine();
         socketsManager = ServerSocketsManager.getManager();
         wifiStateListener = new WifiStateListener(this);
@@ -80,7 +84,7 @@ public class ServerService extends Service implements Bindable {
         Observable.merge(wifiStateOutput, engineOutput.filter(j -> j.getInt("address") % ADDRESS_SOCKET_MANAGER == 0))
                 .subscribe(socketsManagerInput);
         engineInputObservable = Observable.merge(wifiStateOutput, socketsManagerOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0)
-                , activityOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0));
+                , activityOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0), fromServiceToEngine);
         engineInputObservable.subscribe(engineInput);
         activityInputObservable = Observable.merge(wifiStateOutput, engineOutput.filter(j -> j.getInt("address") % ADDRESS_ACTIVITY == 0));
         wifiListenerDisposable = wifiStateListener.getObservable().subscribe(wifiStateOutput::onNext, wifiStateOutput::onError, wifiStateOutput::onComplete);
@@ -92,9 +96,11 @@ public class ServerService extends Service implements Bindable {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String type = intent.getStringExtra("type");
         Log.d("awdsawds", "service command: type " + type);
-        if (type.equals("start"))
+        if (type.equals("start")) {
             name = intent.getStringExtra("name");
-        else if (type.equals("finish")) {
+            serverName = intent.getStringExtra("servername");
+            password = intent.getStringExtra("password");
+        } else if (type.equals("finish")) {
             JSONObject object = new JSONObject();
             try {
                 object.put("type", TYPE_CHANGE_STATE);
@@ -201,6 +207,7 @@ public class ServerService extends Service implements Bindable {
         wifiListenerDisposable.dispose();
         engineInput.onComplete();
         socketsManagerInput.onComplete();
+        fromServiceToEngine.onComplete();
         if (activityInput != null)
             activityInput.onComplete();
         broadcastInput.onComplete();

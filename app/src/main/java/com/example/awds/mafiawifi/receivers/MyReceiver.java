@@ -12,11 +12,11 @@ public class MyReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         Intent toService = null;
-        if(intent.getStringExtra("type").equals("client")){
+        if (intent.getStringExtra("type").equals("client")) {
             toService = new Intent(context, ClientService.class);
-        } else {
+        } else if (intent.getStringExtra("type").equals("server")) {
             toService = new Intent(context, ServerService.class);
-        }
+        } else return;
         toService.putExtra("type", "finish");
         context.startService(toService);
     }
