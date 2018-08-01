@@ -1,7 +1,6 @@
 package com.example.awds.mafiawifi.engines.client;
 
 
-import android.content.Context;
 import android.util.Log;
 
 import com.example.awds.mafiawifi.engines.Engine;
@@ -33,15 +32,17 @@ public class ServerSearchingEngine extends Engine {
     private HashMap<String, JSONObject> serversList;
     private HashMap<String, JSONObject> recentServersList;
 
-    public ServerSearchingEngine(Context context) {
-    }
-
-    @Override
-    public Observable<JSONObject> bind(Observable<JSONObject> observable) {
+    public ServerSearchingEngine() {
         outSubject = PublishSubject.create();
         ipsToScan = PublishSubject.create();
         serversList = new HashMap<>();
         recentServersList = new HashMap<>();
+        ipPinger = new IpPinger();
+        scanner = new ServerScanner();
+    }
+
+    @Override
+    public Observable<JSONObject> bind(Observable<JSONObject> observable) {
         observable.subscribe(c -> {
         }, e -> {
         }, () -> {
@@ -50,8 +51,6 @@ public class ServerSearchingEngine extends Engine {
             disposable.dispose();
             ipsToScan.onComplete();
         });
-        ipPinger = new IpPinger();
-        scanner = new ServerScanner();
         Observable<JSONObject> servers = scanner.bind(ipsToScan);
         servers.subscribe((JSONObject serverInfo) -> {
             synchronized (serversList) {

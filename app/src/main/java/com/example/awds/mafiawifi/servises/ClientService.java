@@ -44,10 +44,11 @@ import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_PLAYING_AS
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_SEARCHING_FOR_SERVERS;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_WAITING_FOR_GAME_START;
 
-public class ClientService extends Service implements Bindable{
+public class ClientService extends Service implements Bindable {
 
     private final MyBinder binder = new MyBinder(this);
     private final int MY_ID = 324;
+
     private Engine engine;
     private ClientSocketManager socketManager;
     private int state;
@@ -68,7 +69,7 @@ public class ClientService extends Service implements Bindable{
         engineOutput = PublishSubject.create();
         activityOutput = PublishSubject.create();
         broadcastInput = PublishSubject.create();
-        engine = new ServerSearchingEngine(this);
+        engine = new ServerSearchingEngine();
         socketManager = ClientSocketManager.getManager();
         wifiStateListener = new WifiStateListener(this);
 
@@ -78,7 +79,7 @@ public class ClientService extends Service implements Bindable{
 
         Observable.merge(activityOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0), broadcastInput
                 , socketManagerOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0), engineOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0))
-                        .subscribe(j -> reactMessage(j), e -> Log.d(MY_TAG, e.toString()));
+                .subscribe(j -> reactMessage(j), e -> Log.d(MY_TAG, e.toString()));
         Observable.merge(wifiStateOutput, engineOutput.filter(j -> j.getInt("address") % ADDRESS_SOCKET_MANAGER == 0))
                 .subscribe(socketManagerInput);
         engineInputObservable = Observable.merge(wifiStateOutput, socketManagerOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0)
@@ -212,7 +213,8 @@ public class ClientService extends Service implements Bindable{
         wifiListenerDisposable.dispose();
         engineInput.onComplete();
         socketManagerInput.onComplete();
-        activityInput.onComplete();
+        if (activityInput != null)
+            activityInput.onComplete();
         broadcastInput.onComplete();
         Log.d("awdsawds", "destroyService");
         changeState(STATE_MAIN_ACTIVITY);

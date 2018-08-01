@@ -58,6 +58,7 @@ public class ServerNamePickDialog extends DialogFragment implements View.OnClick
                     Intent startService = new Intent(context, ServerService.class);
                     startService.putExtra("name", name);
                     startService.putExtra("servername", servname);
+                    startService.putExtra("type","start");
                     intent.putExtra("name", name);
                     intent.putExtra("servername", servname);
                     if (password != null)

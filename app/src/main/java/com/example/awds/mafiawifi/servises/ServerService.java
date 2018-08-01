@@ -13,8 +13,8 @@ import com.example.awds.mafiawifi.R;
 import com.example.awds.mafiawifi.activitys.server.ServerGameActivity;
 import com.example.awds.mafiawifi.activitys.server.WaitingForPlayersActivity;
 import com.example.awds.mafiawifi.engines.Engine;
-import com.example.awds.mafiawifi.engines.client.ServerSearchingEngine;
 import com.example.awds.mafiawifi.engines.server.GameServerEngine;
+import com.example.awds.mafiawifi.engines.server.WaitingServerEngine;
 import com.example.awds.mafiawifi.interfaces.Bindable;
 import com.example.awds.mafiawifi.netclasses.ServerSocketsManager;
 import com.example.awds.mafiawifi.netclasses.WifiStateListener;
@@ -42,10 +42,12 @@ import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_PLAYING_AS
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_WAITING_FOR_PLAYERS;
 
 public class ServerService extends Service implements Bindable {
-    private int state;
-    private final MyBinder binder = new MyBinder(this);
-    private SharedPreferences preferences;
+
     private final int MY_ID = 324;
+    private final MyBinder binder = new MyBinder(this);
+
+    private int state;
+    private SharedPreferences preferences;
     private Engine engine;
     private ServerSocketsManager socketsManager;
     private Subject<JSONObject> socketsManagerInput, engineInput, activityInput, activityOutput, engineOutput, broadcastInput, wifiStateOutput;
@@ -54,14 +56,17 @@ public class ServerService extends Service implements Bindable {
     private Disposable wifiListenerDisposable;
     private String name;
 
-    public ServerService() {
+    @Override
+    public void onCreate() {
+        super.onCreate();
         changeState(STATE_WAITING_FOR_PLAYERS);
         Log.d("awdsawds", "createServerService");
         engineInput = PublishSubject.create();
         engineOutput = PublishSubject.create();
         activityOutput = PublishSubject.create();
         broadcastInput = PublishSubject.create();
-        engine = new ServerSearchingEngine(this);
+        socketsManagerInput = PublishSubject.create();
+        engine = new WaitingServerEngine();
         socketsManager = ServerSocketsManager.getManager();
         wifiStateListener = new WifiStateListener(this);
 
@@ -196,7 +201,8 @@ public class ServerService extends Service implements Bindable {
         wifiListenerDisposable.dispose();
         engineInput.onComplete();
         socketsManagerInput.onComplete();
-        activityInput.onComplete();
+        if (activityInput != null)
+            activityInput.onComplete();
         broadcastInput.onComplete();
         Log.d("awdsawds", "destroyService");
         changeState(STATE_MAIN_ACTIVITY);

@@ -16,6 +16,7 @@ import com.example.awds.mafiawifi.activitys.server.ServerGameActivity;
 import com.example.awds.mafiawifi.activitys.server.WaitingForPlayersActivity;
 import com.example.awds.mafiawifi.interfaces.Bindable;
 import com.example.awds.mafiawifi.servises.ClientService;
+import com.example.awds.mafiawifi.servises.MyBinder;
 
 import org.json.JSONObject;
 
@@ -70,7 +71,7 @@ public class ServerSearchingActivity extends AppCompatActivity {
                     @Override
                     public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
                         serviceInput = PublishSubject.create();
-                        Bindable service = (Bindable) ((ClientService.MyBinder) iBinder).getService();
+                        Bindable service = (Bindable) ((MyBinder) iBinder).getService();
                         serviceOutput = service.bind(serviceInput);
                         serviceOutput.subscribe(j -> Log.d("awdsawds", "message To Activity " + j.toString()), e -> {
                         }, () -> {
