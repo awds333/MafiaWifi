@@ -214,7 +214,6 @@ public class ClientService extends Service implements Bindable {
         wifiListenerDisposable.dispose();
         engineInput.onComplete();
         socketManagerInput.onComplete();
-        fromServiceToEngine.onComplete();
         if (activityInput != null)
             activityInput.onComplete();
         broadcastInput.onComplete();

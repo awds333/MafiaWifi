@@ -60,7 +60,7 @@ public class ServerSearchingEngine extends Engine {
                 JSONObject message = new JSONObject();
                 message.put("serverInfo", serverInfo);
                 message.put("address", ADDRESS_ACTIVITY);
-                message.put("type", message);
+                message.put("type", TYPE_MESSAGE);
                 message.put("event", EVENT_NEW_SERVER_FOUND);
                 sendOutMessage(message);
             }

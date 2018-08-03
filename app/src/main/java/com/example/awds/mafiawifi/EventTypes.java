@@ -20,6 +20,7 @@ public class EventTypes {
     //Message events:
     public static final int EVENT_NEW_SERVER_FOUND = 2;
     public static final int EVENT_SERVERS_LIST_UPDATE = 3;
+    public static final int EVENT_SERVER_INFO = 5;
 
 
     //Game events:

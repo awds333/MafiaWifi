@@ -34,8 +34,10 @@ import static com.example.awds.mafiawifi.EventTypes.ADDRESS_SERVICE;
 import static com.example.awds.mafiawifi.EventTypes.ADDRESS_SOCKET_MANAGER;
 import static com.example.awds.mafiawifi.EventTypes.EVENT_FINISH;
 import static com.example.awds.mafiawifi.EventTypes.EVENT_NEXT_ENGINE;
+import static com.example.awds.mafiawifi.EventTypes.EVENT_SERVER_INFO;
 import static com.example.awds.mafiawifi.EventTypes.EVENT_UPDATE_NOTIFICATION;
 import static com.example.awds.mafiawifi.EventTypes.TYPE_CHANGE_STATE;
+import static com.example.awds.mafiawifi.EventTypes.TYPE_MESSAGE;
 import static com.example.awds.mafiawifi.activitys.MainActivity.MY_TAG;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_MAIN_ACTIVITY;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_PLAYING_AS_SERVER;
@@ -100,6 +102,18 @@ public class ServerService extends Service implements Bindable {
             name = intent.getStringExtra("name");
             serverName = intent.getStringExtra("servername");
             password = intent.getStringExtra("password");
+            JSONObject serverInfo = new JSONObject();
+            try {
+                serverInfo.put("type", TYPE_MESSAGE);
+                serverInfo.put("event", EVENT_SERVER_INFO);
+                serverInfo.put("name", name);
+                serverInfo.put("servername", serverName);
+                if (password != null)
+                    serverInfo.put("password", password);
+                fromServiceToEngine.onNext(serverInfo);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         } else if (type.equals("finish")) {
             JSONObject object = new JSONObject();
             try {
@@ -207,7 +221,6 @@ public class ServerService extends Service implements Bindable {
         wifiListenerDisposable.dispose();
         engineInput.onComplete();
         socketsManagerInput.onComplete();
-        fromServiceToEngine.onComplete();
         if (activityInput != null)
             activityInput.onComplete();
         broadcastInput.onComplete();
