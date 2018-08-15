@@ -17,27 +17,26 @@ import com.example.awds.mafiawifi.engines.server.GameServerEngine;
 import com.example.awds.mafiawifi.engines.server.WaitingServerEngine;
 import com.example.awds.mafiawifi.interfaces.Bindable;
 import com.example.awds.mafiawifi.netclasses.ServerSocketsManager;
-import com.example.awds.mafiawifi.netclasses.WifiStateListener;
 import com.example.awds.mafiawifi.receivers.MyReceiver;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import io.reactivex.Observable;
-import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
 
-import static com.example.awds.mafiawifi.EventTypes.ADDRESS_ACTIVITY;
-import static com.example.awds.mafiawifi.EventTypes.ADDRESS_ENGINE;
-import static com.example.awds.mafiawifi.EventTypes.ADDRESS_SERVICE;
-import static com.example.awds.mafiawifi.EventTypes.ADDRESS_SOCKET_MANAGER;
-import static com.example.awds.mafiawifi.EventTypes.EVENT_FINISH;
-import static com.example.awds.mafiawifi.EventTypes.EVENT_NEXT_ENGINE;
-import static com.example.awds.mafiawifi.EventTypes.EVENT_SERVER_INFO;
-import static com.example.awds.mafiawifi.EventTypes.EVENT_UPDATE_NOTIFICATION;
-import static com.example.awds.mafiawifi.EventTypes.TYPE_CHANGE_STATE;
-import static com.example.awds.mafiawifi.EventTypes.TYPE_MESSAGE;
+import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_ACTIVITY;
+import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_ENGINE;
+import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_SERVICE;
+import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_SOCKET_MANAGER;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_FINISH;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_NEXT_ENGINE;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_SERVER_INFO;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_UPDATE_NOTIFICATION;
+import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_CHANGE_STATE;
+import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_MESSAGE;
 import static com.example.awds.mafiawifi.activitys.MainActivity.MY_TAG;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_MAIN_ACTIVITY;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_PLAYING_AS_SERVER;
@@ -52,10 +51,8 @@ public class ServerService extends Service implements Bindable {
     private SharedPreferences preferences;
     private Engine engine;
     private ServerSocketsManager socketsManager;
-    private Subject<JSONObject> socketsManagerInput, engineInput, activityInput, activityOutput, engineOutput, broadcastInput, wifiStateOutput, fromServiceToEngine;
+    private Subject<JSONObject> socketsManagerInput, engineInput, activityInput, activityOutput, engineOutput, broadcastInput, fromServiceToEngine;
     private Observable<JSONObject> socketsManagerOutput, engineInputObservable, activityInputObservable;
-    private WifiStateListener wifiStateListener;
-    private Disposable wifiListenerDisposable;
 
     private String name;
     private String serverName;
@@ -74,22 +71,19 @@ public class ServerService extends Service implements Bindable {
         fromServiceToEngine = PublishSubject.create();
         engine = new WaitingServerEngine();
         socketsManager = ServerSocketsManager.getManager();
-        wifiStateListener = new WifiStateListener(this);
 
-        engine.bind(engineInput).subscribe((JSONObject j) -> engineOutput.onNext(j), e -> engineOutput.onError(e));
-        socketsManagerOutput = socketsManager.bind(socketsManagerInput);
-        wifiStateOutput = PublishSubject.create();
+        engine.bind(engineInput).subscribeOn(Schedulers.io()).subscribe((JSONObject j) -> engineOutput.onNext(j), e -> engineOutput.onError(e));
+        socketsManagerOutput = socketsManager.bind(socketsManagerInput).subscribeOn(Schedulers.io());
 
-        Observable.merge(activityOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0), broadcastInput
-                , socketsManagerOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0), engineOutput.filter(j -> j.getInt("address") % ADDRESS_SERVICE == 0))
+        Observable.merge(activityOutput.filter(j -> j.getInt("address") == ADDRESS_SERVICE), broadcastInput
+                , socketsManagerOutput.filter(j -> j.getInt("address") == ADDRESS_SERVICE), engineOutput.filter(j -> j.getInt("address") == ADDRESS_SERVICE))
                 .subscribe(j -> reactMessage(j), e -> Log.d(MY_TAG, e.toString()));
-        Observable.merge(wifiStateOutput, engineOutput.filter(j -> j.getInt("address") % ADDRESS_SOCKET_MANAGER == 0))
+        engineOutput.filter(j -> j.getInt("address") == ADDRESS_SOCKET_MANAGER)
                 .subscribe(socketsManagerInput);
-        engineInputObservable = Observable.merge(wifiStateOutput, socketsManagerOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0)
-                , activityOutput.filter(j -> j.getInt("address") % ADDRESS_ENGINE == 0), fromServiceToEngine);
+        engineInputObservable = Observable.merge(socketsManagerOutput.filter(j -> j.getInt("address") == ADDRESS_ENGINE)
+                , activityOutput.filter(j -> j.getInt("address") == ADDRESS_ENGINE), fromServiceToEngine);
         engineInputObservable.subscribe(engineInput);
-        activityInputObservable = Observable.merge(wifiStateOutput, engineOutput.filter(j -> j.getInt("address") % ADDRESS_ACTIVITY == 0));
-        wifiListenerDisposable = wifiStateListener.getObservable().subscribe(wifiStateOutput::onNext, wifiStateOutput::onError, wifiStateOutput::onComplete);
+        activityInputObservable = engineOutput.filter(j -> j.getInt("address") == ADDRESS_ACTIVITY);
 
         updateNotification(getString(R.string.searching));
     }
@@ -145,7 +139,7 @@ public class ServerService extends Service implements Bindable {
     public Observable<JSONObject> bind(Observable<JSONObject> observable) {
         activityInput = PublishSubject.create();
         activityInputObservable.subscribe(activityInput);
-        observable.subscribe(j -> activityOutput.onNext(j), e -> activityOutput.onError(e), activityInput::onComplete);
+        observable.subscribeOn(Schedulers.io()).subscribe(j -> activityOutput.onNext(j), e -> activityOutput.onError(e), activityInput::onComplete);
         return activityInput;
     }
 
@@ -187,12 +181,12 @@ public class ServerService extends Service implements Bindable {
         try {
             int type = object.getInt("type");
             int event = object.getInt("event");
-            if (type % TYPE_CHANGE_STATE == 0) {
-                if (event % EVENT_FINISH == 0) {
+            if (type == TYPE_CHANGE_STATE) {
+                if (event == EVENT_FINISH) {
                     stopSelf();
-                } else if (event % EVENT_UPDATE_NOTIFICATION == 0) {
+                } else if (event == EVENT_UPDATE_NOTIFICATION) {
                     updateNotification(object.getString("text"));
-                } else if (type % EVENT_NEXT_ENGINE == 0) {
+                } else if (type == EVENT_NEXT_ENGINE) {
                     changeEngine();
                 }
             }
@@ -213,12 +207,11 @@ public class ServerService extends Service implements Bindable {
         engineInput.onComplete();
         engineInput = PublishSubject.create();
         engineInputObservable.subscribe(engineInput);
-        engine.bind(engineInput).subscribe((JSONObject j) -> engineOutput.onNext(j), e -> engineOutput.onError(e));
+        engine.bind(engineInput).subscribeOn(Schedulers.io()).subscribe((JSONObject j) -> engineOutput.onNext(j), e -> engineOutput.onError(e));
     }
 
     @Override
     public void onDestroy() {
-        wifiListenerDisposable.dispose();
         engineInput.onComplete();
         socketsManagerInput.onComplete();
         if (activityInput != null)

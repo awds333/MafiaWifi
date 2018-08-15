@@ -3,7 +3,7 @@ package com.example.awds.mafiawifi.netclasses;
 
 import android.util.Log;
 
-import com.example.awds.mafiawifi.EventTypes;
+import com.example.awds.mafiawifi.structures.EventTypes;
 
 import org.json.JSONObject;
 

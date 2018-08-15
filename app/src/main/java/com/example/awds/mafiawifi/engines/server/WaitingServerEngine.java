@@ -4,105 +4,240 @@ package com.example.awds.mafiawifi.engines.server;
 import android.util.Log;
 
 import com.example.awds.mafiawifi.engines.Engine;
+import com.example.awds.mafiawifi.structures.PlayerInfo;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
 
 import io.reactivex.Observable;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 
-import static com.example.awds.mafiawifi.EventTypes.EVENT_SERVER_INFO;
-import static com.example.awds.mafiawifi.EventTypes.TYPE_MESSAGE;
+import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_ACTIVITY;
+import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_SOCKET_MANAGER;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_NEW_PLAYER;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_PLAYER_DISCONNECTED;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_PREPARE_PORT;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_RELEASE_PORT;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_SERVER_INFO;
+import static com.example.awds.mafiawifi.structures.EventTypes.PORT_ALL_PLAYERS;
+import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_GAME_EVENT;
+import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_MESSAGE;
 
 public class WaitingServerEngine extends Engine {
     private PublishSubject outSubject;
     private volatile boolean wait;
-    private int portTail;
-    private ServerSocket serverSocket;
-    private Socket guestSocket;
-    private DataOutputStream outputStream;
+    private int infoPortTail;
+    private ServerSocket InfoServerSocket;
+    private Socket infoSocket;
+    private DataOutputStream infoOutputStream;
+    private int receptionPortTail;
+    private ServerSocket receptionServerSocket;
+    private Socket receptionSocket;
+    private DataOutputStream receptionOutputStream;
     private byte[] serverInfo;
-    private Thread thread;
+    private Thread infoThread;
+    private Thread receptionThread;
+    private int port;
+
+    private HashMap<String, PlayerInfo> players;
 
     public WaitingServerEngine() {
         outSubject = PublishSubject.create();
         wait = true;
-        portTail = 0;
+        infoPortTail = 0;
+        receptionPortTail = 0;
+        port = 1366;
+        players = new HashMap<>();
     }
 
     @Override
     public Observable<JSONObject> bind(Observable<JSONObject> observable) {
-        Log.d("awdsawds","bind waiting engine");
+        Log.d("awdsawds", "bind waiting engine");
         observable.subscribeOn(Schedulers.io()).subscribe(message -> {
+            Log.d("awdsawds", "WaitingEngine " + message.toString());
             int type = message.getInt("type");
             int event = message.getInt("event");
-            if(type==TYPE_MESSAGE){
-                if(event==EVENT_SERVER_INFO){
+            if (type == TYPE_MESSAGE) {
+                if (event == EVENT_SERVER_INFO) {
                     message.remove("type");
                     message.remove("event");
-                    Log.d("awdsawds",message.toString());
                     serverInfo = message.toString().getBytes();
-                    thread.start();
+
+                    PlayerInfo providerInfo = new PlayerInfo(message.getString("name"), "provider");
+                    players.put("provider", providerInfo);
+
+                    JSONObject outMessage = new JSONObject();
+                    outMessage.put("address", ADDRESS_SOCKET_MANAGER);
+                    outMessage.put("type", TYPE_MESSAGE);
+                    outMessage.put("event", EVENT_PREPARE_PORT);
+                    outMessage.put("port", port);
+                    receptionThread.start();
+                    infoThread.start();
+                    sendOutMessage(outMessage);
+                }
+            } else if (type == TYPE_GAME_EVENT) {
+                if (event == EVENT_NEW_PLAYER) {
+                    synchronized (players) {
+                        PlayerInfo player = new PlayerInfo(message.getJSONObject("playerInfo"));
+                        players.put(player.getId(), player);
+
+                    }
+                } else if (event == EVENT_PLAYER_DISCONNECTED) {
+                    JSONObject messageToPlayers = new JSONObject();
+                    JSONObject messageToActivity = new JSONObject();
+                    JSONObject messageToSocketsManager = new JSONObject();
+                    String id = message.getString("id");
+                    synchronized (players) {
+                        messageToSocketsManager.put("port", players.get(id).getPort());
+                        players.remove(id);
+                    }
+
+                    messageToPlayers.put("address", ADDRESS_SOCKET_MANAGER);
+                    messageToPlayers.put("type", TYPE_GAME_EVENT);
+                    messageToPlayers.put("event", EVENT_PLAYER_DISCONNECTED);
+                    messageToPlayers.put("port", PORT_ALL_PLAYERS);
+                    messageToPlayers.put("id", id);
+
+                    sendOutMessage(messageToPlayers);
+
+                    messageToSocketsManager.put("address", ADDRESS_SOCKET_MANAGER);
+                    messageToSocketsManager.put("type", TYPE_MESSAGE);
+                    messageToSocketsManager.put("event", EVENT_RELEASE_PORT);
+
+                    sendOutMessage(messageToSocketsManager);
+
+                    messageToActivity.put("address", ADDRESS_ACTIVITY);
+                    messageToActivity.put("type", TYPE_GAME_EVENT);
+                    messageToActivity.put("event", EVENT_PLAYER_DISCONNECTED);
+                    messageToActivity.put("id", id);
+
+                    sendOutMessage(messageToActivity);
                 }
             }
         }, e -> {
+            Log.d("awdsawds", "WaitingEngine error");
         }, () -> {
-            if(serverSocket!=null)
-                serverSocket.close();
+            Log.d("awdsawds", "WaitingEngine closing");
+            if (InfoServerSocket != null)
+                InfoServerSocket.close();
+            if (receptionServerSocket != null)
+                receptionServerSocket.close();
             wait = false;
             outSubject.onComplete();
         });
-        thread = new Thread(new Runnable() {
+        infoThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    serverSocket = new ServerSocket(1360 + (portTail % 3));
-                    Log.d("awdsawds","waiting for client");
-                    guestSocket = serverSocket.accept();
-                    outputStream = new DataOutputStream(guestSocket.getOutputStream());
-                    outputStream.writeInt(serverInfo.length);
-                    outputStream.write(serverInfo);
+                    InfoServerSocket = new ServerSocket(1360 + (infoPortTail % 3));
+                    Log.d("awdsawds", "waiting for client");
+                    infoSocket = InfoServerSocket.accept();
+                    infoOutputStream = new DataOutputStream(infoSocket.getOutputStream());
+                    infoOutputStream.writeInt(serverInfo.length);
+                    infoOutputStream.write(serverInfo);
                 } catch (IOException e) {
-                    Log.d("awdsawds","socket fail "+ (portTail+1));
-                    portTail++;
+                    Log.d("awdsawds", "socket fail " + (infoPortTail));
+                    infoPortTail++;
                 } finally {
-                    Log.d("awdsawds","socket close "+ (portTail+1));
-                    if (outputStream != null) {
+                    Log.d("awdsawds", "socket close " + (infoPortTail));
+                    if (infoOutputStream != null) {
                         try {
-                            outputStream.close();
+                            infoOutputStream.close();
                         } catch (IOException e1) {
                             e1.printStackTrace();
                         }
-                        outputStream = null;
+                        infoOutputStream = null;
                     }
-                    if (guestSocket != null) {
+                    if (infoSocket != null) {
                         try {
-                            guestSocket.close();
+                            infoSocket.close();
                         } catch (IOException e1) {
                             e1.printStackTrace();
                         }
-                        guestSocket = null;
+                        infoSocket = null;
                     }
-                    if (serverSocket != null) {
-                        if (!serverSocket.isClosed()) {
+                    if (InfoServerSocket != null) {
+                        if (!InfoServerSocket.isClosed()) {
                             try {
-                                serverSocket.close();
+                                InfoServerSocket.close();
                             } catch (IOException e1) {
                                 e1.printStackTrace();
                             }
                         }
-                        serverSocket = null;
+                        InfoServerSocket = null;
                     }
                 }
-                if(wait)
+                if (wait)
+                    run();
+            }
+        });
+        receptionThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    receptionServerSocket = new ServerSocket(1363 + (receptionPortTail % 3));
+                    Log.d("awdsawds", "waiting for client(reception)");
+                    receptionSocket = receptionServerSocket.accept();
+                    receptionOutputStream = new DataOutputStream(receptionSocket.getOutputStream());
+                    port += 3;
+                    JSONObject outMessage = new JSONObject();
+                    try {
+                        outMessage.put("address", ADDRESS_SOCKET_MANAGER);
+                        outMessage.put("type", TYPE_MESSAGE);
+                        outMessage.put("event", EVENT_PREPARE_PORT);
+                        outMessage.put("port", port);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                    receptionOutputStream.writeInt(port - 3);
+                    sendOutMessage(outMessage);
+                } catch (IOException e) {
+                    Log.d("awdsawds", "reception socket fail " + (receptionPortTail));
+                    receptionPortTail++;
+                } finally {
+                    Log.d("awdsawds", "reception socket close " + (receptionPortTail));
+                    if (receptionOutputStream != null) {
+                        try {
+                            receptionOutputStream.close();
+                        } catch (IOException e1) {
+                            e1.printStackTrace();
+                        }
+                        receptionOutputStream = null;
+                    }
+                    if (receptionSocket != null) {
+                        try {
+                            receptionSocket.close();
+                        } catch (IOException e1) {
+                            e1.printStackTrace();
+                        }
+                        receptionSocket = null;
+                    }
+                    if (receptionServerSocket != null) {
+                        if (!receptionServerSocket.isClosed()) {
+                            try {
+                                receptionServerSocket.close();
+                            } catch (IOException e1) {
+                                e1.printStackTrace();
+                            }
+                        }
+                        receptionServerSocket = null;
+                    }
+                }
+                if (wait)
                     run();
             }
         });
         return outSubject;
+    }
+
+    private synchronized void sendOutMessage(JSONObject message) {
+        outSubject.onNext(message);
     }
 }

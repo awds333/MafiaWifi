@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 import io.reactivex.Observable;
 import io.reactivex.schedulers.Schedulers;
 
-import static com.example.awds.mafiawifi.EventTypes.TYPE_WIFI_CONNECTION;
+import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_WIFI_CONNECTION;
 
 public class WifiStateListener {
 

@@ -18,11 +18,11 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 
-import static com.example.awds.mafiawifi.EventTypes.ADDRESS_ACTIVITY;
-import static com.example.awds.mafiawifi.EventTypes.EVENT_NEW_SERVER_FOUND;
-import static com.example.awds.mafiawifi.EventTypes.EVENT_SERVERS_LIST_UPDATE;
-import static com.example.awds.mafiawifi.EventTypes.TYPE_MESSAGE;
-import static com.example.awds.mafiawifi.EventTypes.TYPE_WIFI_CONNECTION;
+import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_ACTIVITY;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_NEW_SERVER_FOUND;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_SERVERS_LIST_UPDATE;
+import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_MESSAGE;
+import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_WIFI_CONNECTION;
 
 public class ServerSearchingEngine extends Engine {
     private PublishSubject outSubject, ipsToScan;
@@ -46,6 +46,7 @@ public class ServerSearchingEngine extends Engine {
     public Observable<JSONObject> bind(Observable<JSONObject> observable) {
         observable.subscribeOn(Schedulers.io()).subscribe(c -> {
         }, e -> {
+            Log.d("awdsawds", "ServerSearchEngine error");
         }, () -> {
             Log.d("awdsawds", "ServerSearchEngine disconnect");
             outSubject.onComplete();
