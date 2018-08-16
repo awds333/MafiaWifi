@@ -6,6 +6,7 @@ import android.util.Log;
 import com.example.awds.mafiawifi.engines.Engine;
 import com.example.awds.mafiawifi.structures.PlayerInfo;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -21,6 +22,8 @@ import io.reactivex.subjects.PublishSubject;
 
 import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_ACTIVITY;
 import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_SOCKET_MANAGER;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_ACTIVITY_CONNECTED;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_GAME_STATE_INFO;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_NEW_PLAYER;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_PLAYER_DISCONNECTED;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_PREPARE_PORT;
@@ -81,21 +84,33 @@ public class WaitingServerEngine extends Engine {
                     receptionThread.start();
                     infoThread.start();
                     sendOutMessage(outMessage);
-                }
-            } else if (type == TYPE_GAME_EVENT) {
-                if (event == EVENT_NEW_PLAYER) {
-                    synchronized (players) {
-                        PlayerInfo player = new PlayerInfo(message.getJSONObject("playerInfo"));
-                        players.put(player.getId(), player);
+                } else if (event == EVENT_ACTIVITY_CONNECTED) {
+                    JSONObject messageToActivity = new JSONObject();
+                    JSONArray playersList;
 
+                    synchronized (players) {
+                        playersList = new JSONArray(players.values());
                     }
+
+                    messageToActivity.put("address", ADDRESS_ACTIVITY);
+                    messageToActivity.put("type", TYPE_GAME_EVENT);
+                    messageToActivity.put("event", EVENT_GAME_STATE_INFO);
+                    messageToActivity.put("playersList", playersList);
+
+                    sendOutMessage(messageToActivity);
                 } else if (event == EVENT_PLAYER_DISCONNECTED) {
                     JSONObject messageToPlayers = new JSONObject();
                     JSONObject messageToActivity = new JSONObject();
                     JSONObject messageToSocketsManager = new JSONObject();
-                    String id = message.getString("id");
+
+                    int port = message.getInt("port");
+                    String id = "";
+                    for (PlayerInfo info : players.values()) {
+                        if (info.getPort() == port)
+                            id = info.getId();
+                    }
                     synchronized (players) {
-                        messageToSocketsManager.put("port", players.get(id).getPort());
+                        messageToSocketsManager.put("port", port);
                         players.remove(id);
                     }
 
@@ -117,6 +132,43 @@ public class WaitingServerEngine extends Engine {
                     messageToActivity.put("type", TYPE_GAME_EVENT);
                     messageToActivity.put("event", EVENT_PLAYER_DISCONNECTED);
                     messageToActivity.put("id", id);
+
+                    sendOutMessage(messageToActivity);
+                }
+            } else if (type == TYPE_GAME_EVENT) {
+                if (event == EVENT_NEW_PLAYER) {
+                    JSONObject messageToPlayers = new JSONObject();
+                    JSONObject messageToActivity = new JSONObject();
+                    JSONObject messageToNewPlayer = new JSONObject();
+
+                    PlayerInfo player = new PlayerInfo(message.getJSONObject("playerInfo"));
+                    JSONArray playersList;
+
+                    synchronized (players) {
+                        players.put(player.getId(), player);
+                        playersList = new JSONArray(players.values());
+                    }
+
+                    messageToPlayers.put("address", ADDRESS_SOCKET_MANAGER);
+                    messageToPlayers.put("type", TYPE_GAME_EVENT);
+                    messageToPlayers.put("event", EVENT_NEW_PLAYER);
+                    messageToPlayers.put("port", PORT_ALL_PLAYERS);
+                    messageToPlayers.put("playerInfo", message.getJSONObject("playerInfo"));
+
+                    sendOutMessage(messageToPlayers);
+
+                    messageToNewPlayer.put("address", ADDRESS_SOCKET_MANAGER);
+                    messageToNewPlayer.put("type", TYPE_GAME_EVENT);
+                    messageToNewPlayer.put("event", EVENT_GAME_STATE_INFO);
+                    messageToNewPlayer.put("playersList", playersList);
+                    messageToNewPlayer.put("port", player.getPort());
+
+                    sendOutMessage(messageToNewPlayer);
+
+                    messageToActivity.put("address", ADDRESS_ACTIVITY);
+                    messageToActivity.put("type", TYPE_GAME_EVENT);
+                    messageToActivity.put("event", EVENT_NEW_PLAYER);
+                    messageToActivity.put("playerInfo", message.getJSONObject("playerInfo"));
 
                     sendOutMessage(messageToActivity);
                 }

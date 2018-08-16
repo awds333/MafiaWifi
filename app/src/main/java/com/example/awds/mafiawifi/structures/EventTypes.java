@@ -25,9 +25,11 @@ public class EventTypes {
     public static final int EVENT_SERVER_INFO = 2;
     public static final int EVENT_PREPARE_PORT = 3;
     public static final int EVENT_RELEASE_PORT = 4;
+    public static final int EVENT_PLAYER_DISCONNECTED = 5;
+    public static final int EVENT_ACTIVITY_CONNECTED = 6;
 
 
     //Game events:
     public static final int EVENT_NEW_PLAYER = 0;
-    public static final int EVENT_PLAYER_DISCONNECTED = 1;
+    public static final int EVENT_GAME_STATE_INFO = 1;
 }
