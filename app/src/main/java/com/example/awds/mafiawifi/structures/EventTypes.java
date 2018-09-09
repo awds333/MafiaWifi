@@ -1,8 +1,6 @@
 package com.example.awds.mafiawifi.structures;
 
 public class EventTypes {
-    public static final int PORT_ALL_PLAYERS = -1;
-
     public static final int ADDRESS_SOCKET_MANAGER = 0;
     public static final int ADDRESS_ACTIVITY = 1;
     public static final int ADDRESS_ENGINE = 2;
@@ -27,6 +25,7 @@ public class EventTypes {
     public static final int EVENT_RELEASE_PORT = 4;
     public static final int EVENT_PLAYER_DISCONNECTED = 5;
     public static final int EVENT_ACTIVITY_CONNECTED = 6;
+    public static final int EVENT_FAILED_TO_OPEN_SERVER_SOCKET = 7;
 
 
     //Game events:

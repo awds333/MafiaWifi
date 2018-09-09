@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
+import java.util.Iterator;
 
 import io.reactivex.Observable;
 import io.reactivex.schedulers.Schedulers;
@@ -29,7 +30,6 @@ import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_PLAYER_DISC
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_PREPARE_PORT;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_RELEASE_PORT;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_SERVER_INFO;
-import static com.example.awds.mafiawifi.structures.EventTypes.PORT_ALL_PLAYERS;
 import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_GAME_EVENT;
 import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_MESSAGE;
 
@@ -117,10 +117,9 @@ public class WaitingServerEngine extends Engine {
                     messageToPlayers.put("address", ADDRESS_SOCKET_MANAGER);
                     messageToPlayers.put("type", TYPE_GAME_EVENT);
                     messageToPlayers.put("event", EVENT_PLAYER_DISCONNECTED);
-                    messageToPlayers.put("port", PORT_ALL_PLAYERS);
                     messageToPlayers.put("id", id);
 
-                    sendOutMessage(messageToPlayers);
+                    sendMessageToAllPlayers(messageToPlayers);
 
                     messageToSocketsManager.put("address", ADDRESS_SOCKET_MANAGER);
                     messageToSocketsManager.put("type", TYPE_MESSAGE);
@@ -152,10 +151,9 @@ public class WaitingServerEngine extends Engine {
                     messageToPlayers.put("address", ADDRESS_SOCKET_MANAGER);
                     messageToPlayers.put("type", TYPE_GAME_EVENT);
                     messageToPlayers.put("event", EVENT_NEW_PLAYER);
-                    messageToPlayers.put("port", PORT_ALL_PLAYERS);
                     messageToPlayers.put("playerInfo", message.getJSONObject("playerInfo"));
 
-                    sendOutMessage(messageToPlayers);
+                    sendMessageToAllPlayers(messageToPlayers);
 
                     messageToNewPlayer.put("address", ADDRESS_SOCKET_MANAGER);
                     messageToNewPlayer.put("type", TYPE_GAME_EVENT);
@@ -287,6 +285,27 @@ public class WaitingServerEngine extends Engine {
             }
         });
         return outSubject;
+    }
+
+    private void sendMessageToAllPlayers(JSONObject message) {
+        synchronized (players) {
+            for (PlayerInfo info : players.values()) {
+                if (port != -1) {
+                    JSONObject mes = new JSONObject();
+                    Iterator<String> keys = mes.keys();
+                    try {
+                        while (keys.hasNext()) {
+                            String key = keys.next();
+                            mes.put(key, message.get(key));
+                        }
+                        mes.put("port", info.getPort());
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                    sendOutMessage(mes);
+                }
+            }
+        }
     }
 
     private synchronized void sendOutMessage(JSONObject message) {

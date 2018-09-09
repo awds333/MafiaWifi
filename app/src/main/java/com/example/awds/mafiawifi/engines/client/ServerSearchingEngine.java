@@ -88,7 +88,7 @@ public class ServerSearchingEngine extends Engine {
                 serversInfo.put(serversList.get(ip));
             }
             try {
-                //message.put("serversInfo",serversInfo);
+                message.put("serversInfo",serversInfo);
                 message.put("address", ADDRESS_ACTIVITY);
                 message.put("type", TYPE_MESSAGE);
                 message.put("event", EVENT_SERVERS_LIST_UPDATE);
