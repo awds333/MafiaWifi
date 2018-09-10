@@ -24,11 +24,11 @@ import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_ACTIVITY;
 import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_SOCKET_MANAGER;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_ACTIVITY_CONNECTED;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_GAME_STATE_INFO;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_MY_INFO;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_NEW_PLAYER;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_PLAYER_DISCONNECTED;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_PREPARE_PORT;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_RELEASE_PORT;
-import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_SERVER_INFO;
 import static com.example.awds.mafiawifi.structures.EventTypes.PORT_ALL_PLAYERS;
 import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_GAME_EVENT;
 import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_MESSAGE;
@@ -68,7 +68,7 @@ public class WaitingServerEngine extends Engine {
             int type = message.getInt("type");
             int event = message.getInt("event");
             if (type == TYPE_MESSAGE) {
-                if (event == EVENT_SERVER_INFO) {
+                if (event == EVENT_MY_INFO) {
                     message.remove("type");
                     message.remove("event");
                     serverInfo = message.toString().getBytes();
@@ -93,7 +93,7 @@ public class WaitingServerEngine extends Engine {
                     }
 
                     messageToActivity.put("address", ADDRESS_ACTIVITY);
-                    messageToActivity.put("type", TYPE_GAME_EVENT);
+                    messageToActivity.put("type", TYPE_MESSAGE);
                     messageToActivity.put("event", EVENT_GAME_STATE_INFO);
                     messageToActivity.put("playersList", playersList);
 
@@ -158,7 +158,7 @@ public class WaitingServerEngine extends Engine {
                     sendOutMessage(messageToPlayers);
 
                     messageToNewPlayer.put("address", ADDRESS_SOCKET_MANAGER);
-                    messageToNewPlayer.put("type", TYPE_GAME_EVENT);
+                    messageToNewPlayer.put("type", TYPE_MESSAGE);
                     messageToNewPlayer.put("event", EVENT_GAME_STATE_INFO);
                     messageToNewPlayer.put("playersList", playersList);
                     messageToNewPlayer.put("port", player.getPort());

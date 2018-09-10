@@ -20,9 +20,10 @@ public class EventTypes {
     public static final int EVENT_UPDATE_NOTIFICATION = 3;
 
     //Message events:
+    public static final int EVENT_GAME_STATE_INFO = -1; //уникальный номер
     public static final int EVENT_NEW_SERVER_FOUND = 0;
     public static final int EVENT_SERVERS_LIST_UPDATE = 1;
-    public static final int EVENT_SERVER_INFO = 2;
+    public static final int EVENT_MY_INFO = 2;
     public static final int EVENT_PREPARE_PORT = 3;
     public static final int EVENT_RELEASE_PORT = 4;
     public static final int EVENT_PLAYER_DISCONNECTED = 5;
@@ -31,5 +32,4 @@ public class EventTypes {
 
     //Game events:
     public static final int EVENT_NEW_PLAYER = 0;
-    public static final int EVENT_GAME_STATE_INFO = 1;
 }

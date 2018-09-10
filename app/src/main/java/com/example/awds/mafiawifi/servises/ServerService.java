@@ -32,8 +32,8 @@ import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_ENGINE;
 import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_SERVICE;
 import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_SOCKET_MANAGER;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_FINISH;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_MY_INFO;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_NEXT_ENGINE;
-import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_SERVER_INFO;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_UPDATE_NOTIFICATION;
 import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_CHANGE_STATE;
 import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_MESSAGE;
@@ -99,7 +99,7 @@ public class ServerService extends Service implements Bindable {
             JSONObject serverInfo = new JSONObject();
             try {
                 serverInfo.put("type", TYPE_MESSAGE);
-                serverInfo.put("event", EVENT_SERVER_INFO);
+                serverInfo.put("event", EVENT_MY_INFO);
                 serverInfo.put("name", name);
                 serverInfo.put("servername", serverName);
                 if (password != null)

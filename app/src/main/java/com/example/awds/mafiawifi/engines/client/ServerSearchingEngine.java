@@ -6,6 +6,7 @@ import android.util.Log;
 import com.example.awds.mafiawifi.engines.Engine;
 import com.example.awds.mafiawifi.netclasses.IpPinger;
 import com.example.awds.mafiawifi.netclasses.ServerScanner;
+import com.example.awds.mafiawifi.structures.PlayerInfo;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -19,6 +20,9 @@ import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subjects.PublishSubject;
 
 import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_ACTIVITY;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_ACTIVITY_CONNECTED;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_GAME_STATE_INFO;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_MY_INFO;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_NEW_SERVER_FOUND;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_SERVERS_LIST_UPDATE;
 import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_MESSAGE;
@@ -29,9 +33,12 @@ public class ServerSearchingEngine extends Engine {
     private IpPinger ipPinger;
     private ServerScanner scanner;
     private Disposable disposable;
+    private String name;
 
     private HashMap<String, JSONObject> serversList;
     private HashMap<String, JSONObject> recentServersList;
+
+    private HashMap<String, PlayerInfo> players;
 
     public ServerSearchingEngine() {
         outSubject = PublishSubject.create();
@@ -44,7 +51,21 @@ public class ServerSearchingEngine extends Engine {
 
     @Override
     public Observable<JSONObject> bind(Observable<JSONObject> observable) {
-        observable.subscribeOn(Schedulers.io()).subscribe(c -> {
+        observable.subscribeOn(Schedulers.io()).subscribe(message -> {
+            Log.d("awdsawds", "ServerSearchEngine " + message.toString());
+            int type = message.getInt("type");
+            int event = message.getInt("event");
+            if (type == TYPE_MESSAGE) {
+                if (event == EVENT_MY_INFO) {
+                    name = message.getString("name");
+                } else if (event == EVENT_ACTIVITY_CONNECTED) {
+                    JSONObject gameStateInfo = new JSONObject();
+                    gameStateInfo.put("address", ADDRESS_ACTIVITY);
+                    gameStateInfo.put("type", TYPE_MESSAGE);
+                    gameStateInfo.put("event", EVENT_GAME_STATE_INFO);
+
+                }
+            }
         }, e -> {
             Log.d("awdsawds", "ServerSearchEngine error");
         }, () -> {

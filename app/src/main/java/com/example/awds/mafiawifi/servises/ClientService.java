@@ -36,6 +36,7 @@ import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_ENGINE;
 import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_SERVICE;
 import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_SOCKET_MANAGER;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_FINISH;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_MY_INFO;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_NEXT_ENGINE;
 import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_UPDATE_NOTIFICATION;
 import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_CHANGE_STATE;
@@ -44,6 +45,7 @@ import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_MAIN_ACTIV
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_PLAYING_AS_CLIENT;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_SEARCHING_FOR_SERVERS;
 import static com.example.awds.mafiawifi.activitys.MainActivity.STATE_WAITING_FOR_GAME_START;
+import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_MESSAGE;
 
 public class ClientService extends Service implements Bindable {
 
@@ -54,7 +56,8 @@ public class ClientService extends Service implements Bindable {
     private ClientSocketManager socketManager;
     private int state;
     private SharedPreferences preferences;
-    private Subject<JSONObject> socketManagerInput, engineInput, activityInput, activityOutput, engineOutput, broadcastInput, wifiStateOutput, fromServiceToEngine;
+    private Subject<JSONObject> socketManagerInput, engineInput, activityInput, activityOutput, engineOutput
+            , broadcastInput, wifiStateOutput, fromServiceToEngine;
     private Observable<JSONObject> socketManagerOutput, engineInputObservable, activityInputObservable;
     private WifiStateListener wifiStateListener;
     private Disposable wifiListenerDisposable;
@@ -97,8 +100,18 @@ public class ClientService extends Service implements Bindable {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String type = intent.getStringExtra("type");
         Log.d("awdsawds", "service command: type " + type);
-        if (type.equals("start"))
+        if (type.equals("start")) {
             name = intent.getStringExtra("name");
+            JSONObject serverInfo = new JSONObject();
+            try {
+                serverInfo.put("type", TYPE_MESSAGE);
+                serverInfo.put("event", EVENT_MY_INFO);
+                serverInfo.put("name", name);
+                fromServiceToEngine.onNext(serverInfo);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
         else if (type.equals("finish")) {
             JSONObject object = new JSONObject();
             try {
