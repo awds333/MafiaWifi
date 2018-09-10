@@ -25,7 +25,7 @@ public class ServerScanner {
                             inputStream = new DataInputStream(socket.getInputStream());
                             int length = inputStream.readInt();
                             byte[] bytes = new byte[length];
-                            inputStream.read(bytes);
+                            inputStream.readFully(bytes);
                             message = new String(bytes, "UTF-8");
                         } catch (IOException e) {
 

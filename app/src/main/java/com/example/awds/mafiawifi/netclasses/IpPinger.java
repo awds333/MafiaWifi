@@ -22,13 +22,14 @@ public class IpPinger {
                 .filter(i->i.charAt(0)!='0')
                 .flatMap(i -> Flowable.just(i))
                 .subscribeOn(Schedulers.io())
-                .flatMap(ip -> {
+                .map(ip -> {
                     if(ip.substring(ip.lastIndexOf('.')+1).equals("256"))
-                        return Flowable.just("256");
+                        return "256";
                     if (InetAddress.getByName(ip).isReachable(200))
-                        return Flowable.just(ip);
-                    return Flowable.empty();
-                }).map(i->i);
+                        return ip+"";
+                    return "-1";
+                }).filter(ip->!ip.equals("-1"))
+                .map(i->i);
         return justIps;
     }
 }
