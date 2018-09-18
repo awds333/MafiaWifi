@@ -31,4 +31,5 @@ public class EventTypes {
 
     //Game events:
     public static final int EVENT_NEW_PLAYER = 0;
+    public static final int EVENT_MESSAGE_FROM_CLIENT = 1;
 }

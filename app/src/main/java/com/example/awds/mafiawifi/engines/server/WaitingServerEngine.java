@@ -76,14 +76,8 @@ public class WaitingServerEngine extends Engine {
                     PlayerInfo providerInfo = new PlayerInfo(message.getString("name"), "provider");
                     players.put("provider", providerInfo);
 
-                    JSONObject outMessage = new JSONObject();
-                    outMessage.put("address", ADDRESS_SOCKET_MANAGER);
-                    outMessage.put("type", TYPE_MESSAGE);
-                    outMessage.put("event", EVENT_PREPARE_PORT);
-                    outMessage.put("port", port);
                     receptionThread.start();
                     infoThread.start();
-                    sendOutMessage(outMessage);
                 } else if (event == EVENT_ACTIVITY_CONNECTED) {
                     JSONObject messageToActivity = new JSONObject();
                     JSONArray playersList;

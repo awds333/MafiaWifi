@@ -12,6 +12,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import io.reactivex.Observable;
 import io.reactivex.subjects.PublishSubject;
 
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_GAME_STATE_INFO;
 import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_GAME_EVENT;
 import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_MESSAGE;
 
@@ -35,14 +36,15 @@ public class ServerSocketsManager {
     }
 
     public Observable<JSONObject> bind(Observable<JSONObject> observable) {
-        observable.filter(message -> message.getInt("type") == TYPE_MESSAGE).subscribe(i -> {
+        observable.filter(message -> message.getInt("type") == TYPE_MESSAGE &&
+                message.getInt("event")!=EVENT_GAME_STATE_INFO).subscribe(i -> {
 
                 },
                 e -> Log.d("awdsawds", "ERROR IN SOCKETS MANAGER INPUT " + e.toString()),
                 () -> {
                     outSubject.onComplete();
                 });
-        gameMessages = observable.filter(message -> message.getInt("type") == TYPE_GAME_EVENT);
+        gameMessages = observable.filter(message -> message.getInt("type") == TYPE_GAME_EVENT || message.getInt("event") == EVENT_GAME_STATE_INFO);
         return outSubject;
     }
 }

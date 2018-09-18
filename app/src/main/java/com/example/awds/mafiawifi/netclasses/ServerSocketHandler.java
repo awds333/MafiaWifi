@@ -20,6 +20,14 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.subjects.PublishSubject;
 
+import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_ENGINE;
+import static com.example.awds.mafiawifi.structures.EventTypes.ADDRESS_SOCKET_MANAGER;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_FAILED_TO_OPEN_SERVER_SOCKET;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_MESSAGE_FROM_CLIENT;
+import static com.example.awds.mafiawifi.structures.EventTypes.EVENT_PLAYER_DISCONNECTED;
+import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_GAME_EVENT;
+import static com.example.awds.mafiawifi.structures.EventTypes.TYPE_MESSAGE;
+
 public class ServerSocketHandler {
     private ServerSocket serverSocket;
     private Socket socket;
@@ -122,6 +130,11 @@ public class ServerSocketHandler {
                 while (!finished) {
                     try {
                         openServerSocket();
+                        if (finished){
+                            if(serverSocket!=null)
+                                serverSocket.close();
+                            return;
+                        }
                         socket = serverSocket.accept();
                     } catch (IOException e) {
 
@@ -137,7 +150,6 @@ public class ServerSocketHandler {
                     synchronized (messagesQueue) {
                         messagesQueue = new LinkedList<>();
                     }
-                    //Message to engine
                 }
                 synchronized (executorService) {
                     sendMessageFuture = executorService.scheduleAtFixedRate(sendMessageFromQueue, 0, 75, TimeUnit.MILLISECONDS);
@@ -150,9 +162,17 @@ public class ServerSocketHandler {
         notifyEngine = new Runnable() {
             @Override
             public void run() {
-
+                JSONObject message = new JSONObject();
+                try {
+                    message.put("address", ADDRESS_ENGINE);
+                    message.put("type", TYPE_MESSAGE);
+                    message.put("event", EVENT_PLAYER_DISCONNECTED);
+                    message.put("port", port);
+                    sendOutputMessage(message);
+                } catch (JSONException e) {
+                }
             }
-        }
+        };
 
         checkConnection = new Runnable() {
             @Override
@@ -181,8 +201,6 @@ public class ServerSocketHandler {
                         outputStream.write(message);
                         messagesQueue.remove(0);
                     } catch (IOException e) {
-                        Thread reconnectingThread = new Thread(reconnect);
-                        reconnectingThread.start();
                     }
                 }
             }
@@ -201,12 +219,15 @@ public class ServerSocketHandler {
                     messageBytes = new byte[length];
                     inputStream.readFully(messageBytes);
                 } catch (IOException e) {
-                    Thread reconnectingThread = new Thread(reconnect);
-                    reconnectingThread.start();
                     return;
                 }
                 try {
-                    JSONObject message = new JSONObject(new String(messageBytes));
+                    JSONObject message = new JSONObject();
+                    message.put("address", ADDRESS_ENGINE);
+                    message.put("type", TYPE_GAME_EVENT);
+                    message.put("event", EVENT_MESSAGE_FROM_CLIENT);
+                    message.put("message", new String(messageBytes));
+                    message.put("port", port);
                     sendOutputMessage(message);
                 } catch (JSONException e) {
                     e.printStackTrace();
@@ -217,24 +238,43 @@ public class ServerSocketHandler {
         Runnable init = new Runnable() {
             @Override
             public void run() {
+                messagesQueue = new LinkedList<>();
                 try {
                     openServerSocket();
                     serverSocket.setSoTimeout(5000);
                 } catch (IOException e) {
                     //fail to open serverSocket
                     JSONObject message = new JSONObject();
-                    message.put()
+                    try {
+                        message.put("address", ADDRESS_SOCKET_MANAGER);
+                        message.put("type", TYPE_MESSAGE);
+                        message.put("event", EVENT_FAILED_TO_OPEN_SERVER_SOCKET);
+                        message.put("port", port);
+                        sendOutputMessage(message);
+                        return;
+                    } catch (JSONException e1) {
+                    }
                 }
                 try {
                     socket = serverSocket.accept();
                     inputStream = new DataInputStream(socket.getInputStream());
                     outputStream = new DataOutputStream(socket.getOutputStream());
                 } catch (SocketTimeoutException e) {
-
+                    JSONObject message = new JSONObject();
+                    try {
+                        message.put("address", ADDRESS_SOCKET_MANAGER);
+                        message.put("type", TYPE_MESSAGE);
+                        message.put("event", EVENT_FAILED_TO_OPEN_SERVER_SOCKET);
+                        message.put("port", port);
+                        sendOutputMessage(message);
+                        return;
+                    } catch (JSONException e1) {
+                    }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    Thread reconnectingThread = new Thread(reconnect);
+                    reconnectingThread.start();
+                    return;
                 }
-                messagesQueue = new LinkedList<>();
 
                 synchronized (executorService) {
                     sendMessageFuture = executorService.scheduleAtFixedRate(sendMessageFromQueue, 0, 75, TimeUnit.MILLISECONDS);
